@@ -8,12 +8,15 @@ function App() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [walletError, setWalletError] = useState('');
 
+  // Lấy số dư ETH của một địa chỉ ví rồi cập nhật vào state để hiển thị lên UI.
   const updateWalletData = async (provider, address) => {
     const balance = await provider.getBalance(address);
     setWalletAddress(address);
     setWalletBalance(Number(formatEther(balance)).toFixed(4));
   };
 
+  // Khi người dùng bấm Connect Wallet, hàm này gọi MetaMask để xin quyền kết nối.
+  // Nếu kết nối thành công, app sẽ lấy địa chỉ ví và số dư ETH để hiển thị.
   const connectWallet = async () => {
     if (!window.ethereum) {
       setWalletError('Vui lòng cài đặt MetaMask để kết nối ví.');
@@ -40,6 +43,8 @@ function App() {
     }
   };
 
+  // Lắng nghe MetaMask khi người dùng đổi tài khoản hoặc đổi mạng.
+  // Mục đích là để UI luôn đồng bộ với ví thực tế mà không cần tải lại thủ công.
   useEffect(() => {
     if (!window.ethereum) {
       return undefined;
@@ -82,12 +87,13 @@ function App() {
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 text-center mt-10">
         <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl shadow-slate-950/40">
           <h2 className="text-2xl font-semibold text-slate-100">
-          Hệ thống cho thuê tài sản đảm bảo bằng Smart Contract
+            Hệ thống cho thuê tài sản đảm bảo bằng Smart Contract
           </h2>
           <p className="text-sm text-slate-400 mt-2">
             Giao diện chặng 1 đang được xây dựng...
           </p>
 
+          {/* Hai khối này hiển thị dữ liệu ví đã kết nối để người dùng kiểm tra nhanh. */}
           <div className="mt-6 grid gap-4 text-left sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Địa chỉ ví</p>

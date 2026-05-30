@@ -8,6 +8,7 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting })
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Khi đã kết nối ví, phần này hiển thị nhanh địa chỉ và số dư ngay trên thanh navbar. */}
         {hasWalletData && (
           <div className="hidden sm:flex flex-col items-end text-right text-xs text-slate-300">
             <span className="font-medium text-slate-100">{walletAddress}</span>
@@ -15,6 +16,7 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting })
           </div>
         )}
 
+        {/* Nút này gọi callback từ App để mở MetaMask và xin quyền kết nối ví. */}
         <button
           type="button"
           onClick={onConnectWallet}
