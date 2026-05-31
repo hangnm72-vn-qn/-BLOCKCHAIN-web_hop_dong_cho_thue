@@ -1,3 +1,4 @@
+import React from 'react';
 function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting }) {
   const hasWalletData = Boolean(walletAddress);
 
@@ -8,7 +9,7 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting })
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Khi đã kết nối ví, phần này hiển thị nhanh địa chỉ và số dư ngay trên thanh navbar. */}
+        {/* Nếu đã có ví, hiển thị nhanh địa chỉ và số dư */}
         {hasWalletData && (
           <div className="hidden sm:flex flex-col items-end text-right text-xs text-slate-300">
             <span className="font-medium text-slate-100">{walletAddress}</span>
@@ -16,12 +17,12 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting })
           </div>
         )}
 
-        {/* Nút này gọi callback từ App để mở MetaMask và xin quyền kết nối ví. */}
+        {/* Nút bấm tự động đổi chữ tùy trạng thái kết nối */}
         <button
           type="button"
           onClick={onConnectWallet}
           disabled={isConnecting}
-          className="bg-blue-600 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 text-white font-medium px-4 py-2 rounded-xl transition-colors cursor-pointer"
+          className="bg-blue-600 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 text-white font-medium px-4 py-2 rounded-xl transition-colors cursor-pointer text-sm"
         >
           {isConnecting ? 'Connecting...' : hasWalletData ? 'Wallet Connected' : 'Connect Wallet'}
         </button>
