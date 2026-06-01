@@ -1,4 +1,3 @@
-import React from 'react';
 function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting }) {
   const hasWalletData = Boolean(walletAddress);
 
