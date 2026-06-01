@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import ProductDetail from './pages/ProductDetail';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 function App() {
   const [walletAddress, setWalletAddress] = useState('');
@@ -77,22 +78,25 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
-      <div>
-        <Navbar
-          onConnectWallet={connectWallet}
-          walletAddress={walletAddress}
-          walletBalance={walletBalance}
-          isConnecting={isConnecting}
-        />
-
-        <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 text-center mt-10">
-          <ProductDetail />
-        </main>
+    <BrowserRouter>
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
+        <div>
+          <Navbar
+            onConnectWallet={connectWallet}
+            walletAddress={walletAddress}
+            walletBalance={walletBalance}
+            isConnecting={isConnecting}
+          />
+          <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 text-center mt-10">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/product/:id" element={<ProductDetail />} />
+            </Routes>
+          </main>
+        </div>
+        <Footer />
       </div>
-
-      <Footer />
-    </div>
+    </BrowserRouter>
   );
 }
 

@@ -1,20 +1,22 @@
 import api from './api'
 
-export const createProduct = async (name, description, pricePerDay, imageFile) => {
+export const createProduct = async (title, description, pricePerDay, depositAmount, ownerAddress, imageFile) => {
     const formData = new FormData()
-    formData.append('name', name)
+    formData.append('title', title)
     formData.append('description', description)
     formData.append('pricePerDay', pricePerDay)
+    formData.append('depositAmount', depositAmount)
+    formData.append('ownerAddress', ownerAddress)
     formData.append('image', imageFile)
 
-    const response = await api.post('/products', formData)
+    const response = await api.post('/products', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    })
     return response.data
 }
 
 export const getAllProducts = async () => {
     const response = await api.get('/products')
-    // Nhóm 3 trả về { success: true, data: [...] }
-    // nên phải lấy response.data.data
     return response.data.data
 }
 

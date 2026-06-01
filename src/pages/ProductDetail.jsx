@@ -1,25 +1,35 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Button from '../components/Button';
 import Input from '../components/Input';
+import { getProductById } from '../Service - Ân/productService';
+
+import { useParams, useNavigate } from 'react-router-dom';
 
 function ProductDetail() {
-  // Giả định đang xem sản phẩm ID số 1 (Dữ liệu mẫu, sau này bạn của bạn sẽ map với IPFS)
-  const product = {
-    name: "Đầm Dạ Hội Trắng Silk Cao Cấp",
-    rentPrice: "0.005",
-    depositPrice: "0.05",
-    image: "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&auto=format&fit=crop&q=60",
-    status: "Mới 98% - Không sờn vải - Khóa kéo trơn tru",
-    owner: "0x71C...3A9b"
-  };
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [product, setProduct] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      const data = await getProductById(id)
+      setProduct(data)
+      setLoading(false)
+    }
+    fetchProduct()
+  }, [id])
+
+  if (loading) return <p className="text-slate-400 text-center mt-10">Đang tải sản phẩm...</p>
+  if (!product) return <p className="text-slate-400 text-center mt-10">Không tìm thấy sản phẩm.</p>
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-10 text-left mt-4">
       {/* CỘT TRÁI: Ảnh phóng to siêu nét */}
       <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl h-[500px]">
         <img
-          src={product.image}
-          alt={product.name}
+          src={product.images[0]}
+          alt={product.title}
           className="w-full h-full object-cover"
         />
       </div>
@@ -30,15 +40,15 @@ function ProductDetail() {
           <span className="text-xs font-bold text-blue-500 uppercase tracking-widest bg-blue-950/50 border border-blue-900/50 px-3 py-1 rounded-full">
             Chi Tiết Hợp Đồng Thuê
           </span>
-          <h2 className="text-3xl font-bold text-white mt-3 mb-2">{product.name}</h2>
+          <h2 className="text-3xl font-bold text-white mt-3 mb-2">{product.title}</h2>
           <p className="text-xs text-slate-500 mb-6">
-            Chủ sở hữu (Lessor): <span className="text-slate-400 font-mono">{product.owner}</span>
+            Chủ sở hữu (Lessor): <span className="text-slate-400 font-mono">{product.ownerAddress}</span>
           </p>
 
           {/* Khối tình trạng hiện tại */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">🔍 Tình trạng bàn giao thực tế:</h4>
-            <p className="text-sm text-emerald-400 font-medium">{product.status}</p>
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">🔍 Mô tả sản phẩm:</h4>
+            <p className="text-sm text-emerald-400 font-medium">{product.description}</p>
           </div>
 
           {/* BẢNG ĐIỀU KHOẢN PHẠT ĐỀN CỦA SMART CONTRACT */}
@@ -57,7 +67,7 @@ function ProductDetail() {
               </li>
               <li className="flex justify-between pb-0">
                 <span>🔥 Mất đồ / Hư hỏng hoàn toàn:</span>
-                <span className="text-rose-400 font-bold">Tịch thu 100% tiền cọc ({product.depositPrice} ETH)</span>
+                <span className="text-rose-400 font-bold">Tịch thu 100% tiền cọc ({product.depositAmount.toLocaleString()} VNĐ)</span>
               </li>
             </ul>
           </div>
@@ -75,22 +85,28 @@ function ProductDetail() {
             />
             <div>
               <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
-                Tổng tiền thuê ước tính
+                Giá thuê / ngày
               </label>
               <div className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-blue-400 font-bold text-sm h-[46px] flex items-center">
-                {product.rentPrice} ETH
+                {product.pricePerDay.toLocaleString()} VNĐ
               </div>
             </div>
           </div>
 
           {/* HÀNG NÚT BẤM CHÍNH */}
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <Button variant="secondary" className="flex-1">
+            <Button variant="secondary" className="flex-1" onClick={() => navigate('/')}>
               Quay Lại
             </Button>
-            <Button variant="primary" className="flex-[2] font-bold text-base bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20">
-              ⚡ Thuê Ngay (Khóa Cọc {product.depositPrice} ETH)
-            </Button>
+            {product.status === 'Available' ? (
+              <Button variant="primary" className="flex-[2] font-bold text-base bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20">
+                ⚡ Thuê Ngay (Khóa Cọc {product.depositAmount.toLocaleString()} VNĐ)
+              </Button>
+            ) : (
+              <Button variant="primary" className="flex-[2] font-bold text-base bg-slate-600 cursor-not-allowed" disabled>
+                Sản phẩm đang được thuê
+              </Button>
+            )}
           </div>
 
           <p className="text-[11px] text-slate-500 text-center italic">
