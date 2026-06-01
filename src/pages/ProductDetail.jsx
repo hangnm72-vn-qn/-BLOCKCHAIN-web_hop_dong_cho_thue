@@ -10,16 +10,16 @@ function ProductDetail() {
     depositPrice: "0.05",
     image: "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&auto=format&fit=crop&q=60",
     status: "Mới 98% - Không sờn vải - Khóa kéo trơn tru",
-    owner: "0x71C...3A9b" 
+    owner: "0x71C...3A9b"
   };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-10 text-left mt-4">
       {/* CỘT TRÁI: Ảnh phóng to siêu nét */}
       <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl h-[500px]">
-        <img 
-          src={product.image} 
-          alt={product.name} 
+        <img
+          src={product.image}
+          alt={product.name}
           className="w-full h-full object-cover"
         />
       </div>
@@ -44,7 +44,7 @@ function ProductDetail() {
           {/* BẢNG ĐIỀU KHOẢN PHẠT ĐỀN CỦA SMART CONTRACT */}
           <div className="border border-rose-900/30 bg-rose-950/10 rounded-2xl p-5 border-l-4 border-l-rose-500">
             <h4 className="text-sm font-bold text-rose-400 flex items-center gap-2 mb-3">
-              ⚠️ Điều Khoản Phạt Đền 
+              ⚠️ Điều Khoản Phạt Đền
             </h4>
             <ul className="space-y-2.5 text-xs text-slate-300">
               <li className="flex justify-between border-b border-slate-900 pb-1.5">
@@ -66,11 +66,11 @@ function ProductDetail() {
         {/* Khung tính toán đặt cọc & Khối Nút bấm hành động */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5 shadow-xl">
           <div className="grid grid-cols-2 gap-4">
-            <Input 
-              label="Số ngày thuê" 
-              type="number" 
-              placeholder="1" 
-              min="1" 
+            <Input
+              label="Số ngày thuê"
+              type="number"
+              placeholder="1"
+              min="1"
               className="w-full"
             />
             <div>
@@ -92,7 +92,7 @@ function ProductDetail() {
               ⚡ Thuê Ngay (Khóa Cọc {product.depositPrice} ETH)
             </Button>
           </div>
-          
+
           <p className="text-[11px] text-slate-500 text-center italic">
             *Bấm Thuê Ngay sẽ kích hoạt MetaMask để thực hiện giao dịch đặt cọc vào Hợp đồng thông minh.
           </p>

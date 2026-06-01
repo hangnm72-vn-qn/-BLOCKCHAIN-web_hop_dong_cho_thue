@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { BrowserProvider, formatEther } from 'ethers';
 import Navbar from './components/Navbar';
-import Footer from './components/Footer'; 
-import Home from './pages/Home'; 
-import ProductDetail from './pages/ProductDetail'; 
+import Footer from './components/Footer';
+import Home from './pages/Home';
+import ProductDetail from './pages/ProductDetail';
 
 function App() {
   const [walletAddress, setWalletAddress] = useState('');
