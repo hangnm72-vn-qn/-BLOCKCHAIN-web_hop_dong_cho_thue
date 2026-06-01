@@ -17,7 +17,7 @@ function App() {
     const balance = await provider.getBalance(address);
     setWalletAddress(address);
     setWalletBalance(Number(formatEther(balance)).toFixed(4));
-  };
+  }; d
 
   // Kích hoạt MetaMask để xin quyền kết nối
   const connectWallet = async () => {
