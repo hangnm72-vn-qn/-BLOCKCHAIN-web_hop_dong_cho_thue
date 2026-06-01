@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { BrowserProvider, formatEther } from 'ethers';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import Home from './pages/Home';
 import ProductDetail from './pages/ProductDetail';
-import { SEPOLIA_CHAIN_ID, createRentalFactoryContract } from './contracts/rentalFactoryConfig';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 function App() {
   const [walletAddress, setWalletAddress] = useState('');
@@ -119,30 +120,25 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
-      <div>
-        <Navbar
-          onConnectWallet={connectWallet}
-          walletAddress={walletAddress}
-          walletBalance={walletBalance}
-          isConnecting={isConnecting}
-        />
-
-        <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 text-center mt-10">
-          <ProductDetail />
-        </main>
-
-        {/* Diagnostic area using contract and error states so ESLint considers them used */}
-        <div className="mx-auto max-w-7xl px-6 pb-6 text-sm text-slate-400 flex flex-col gap-2">
-          <div>Contract status: {factoryStatus}</div>
-          <div>Total contracts: {factoryTotalContracts}</div>
-          <div>Arbitrator: {factoryArbitrator || 'N/A'}</div>
-          {walletError && <div className="text-rose-400">Error: {walletError}</div>}
+    <BrowserRouter>
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
+        <div>
+          <Navbar
+            onConnectWallet={connectWallet}
+            walletAddress={walletAddress}
+            walletBalance={walletBalance}
+            isConnecting={isConnecting}
+          />
+          <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 text-center mt-10">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/product/:id" element={<ProductDetail />} />
+            </Routes>
+          </main>
         </div>
+        <Footer />
       </div>
-
-      <Footer />
-    </div>
+    </BrowserRouter>
   );
 }
 
