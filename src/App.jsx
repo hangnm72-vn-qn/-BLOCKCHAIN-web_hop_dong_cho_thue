@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import ProductDetail from './pages/ProductDetail';
+import Login from './pages/Login';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 function App() {
@@ -133,6 +134,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/product/:id" element={<ProductDetail />} />
+              <Route path="/login" element={<Login />} />
             </Routes>
           </main>
         </div>
