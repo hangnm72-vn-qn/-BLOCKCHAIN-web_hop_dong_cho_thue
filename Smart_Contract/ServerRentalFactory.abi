@@ -3,7 +3,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "_arbitrator",
+        "name": "_tokenAddress",
         "type": "address"
       }
     ],
@@ -15,86 +15,65 @@
     "inputs": [
       {
         "indexed": true,
+        "internalType": "uint256",
+        "name": "packageId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
         "internalType": "address",
-        "name": "rentalAddress",
+        "name": "owner",
         "type": "address"
       },
       {
         "indexed": true,
         "internalType": "address",
-        "name": "itemOwner",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "itemRenter",
+        "name": "contractAddress",
         "type": "address"
       },
       {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "rentalAmount",
-        "type": "uint256"
+        "internalType": "string",
+        "name": "configType",
+        "type": "string"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "itemValue",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "maxDamagePercent",
+        "name": "pricePerHour",
         "type": "uint256"
       }
     ],
-    "name": "RentalContractCreated",
+    "name": "PackageCreated",
     "type": "event"
   },
   {
-    "inputs": [],
-    "name": "arbitrator",
-    "outputs": [
+    "anonymous": false,
+    "inputs": [
       {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "packageId",
+        "type": "uint256"
       }
     ],
-    "stateMutability": "view",
-    "type": "function"
+    "name": "PackageDeactivated",
+    "type": "event"
   },
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "_renter",
-        "type": "address"
+        "internalType": "string",
+        "name": "_configType",
+        "type": "string"
       },
       {
         "internalType": "uint256",
-        "name": "_rentalAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_lateFeePerDay",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_itemValue",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_maxDamagePercent",
+        "name": "_pricePerHour",
         "type": "uint256"
       }
     ],
-    "name": "createRentalContract",
+    "name": "createServerPackage",
     "outputs": [
       {
         "internalType": "address",
@@ -107,12 +86,82 @@
   },
   {
     "inputs": [],
-    "name": "getAllRentalContracts",
+    "name": "getAllPackageAddresses",
     "outputs": [
       {
-        "internalType": "contract RentalContract[]",
+        "internalType": "address[]",
         "name": "",
         "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_packageId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getPackageAddress",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_packageId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getPackageInfo",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "contractAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "configType",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pricePerHour",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "status",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalRentals",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ServerRentalFactory.PackageInfo",
+        "name": "",
+        "type": "tuple"
       }
     ],
     "stateMutability": "view",
@@ -126,69 +175,12 @@
         "type": "address"
       }
     ],
-    "name": "getOwnerRentalCount",
+    "name": "getPackagesByOwner",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint256[]",
         "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_owner",
-        "type": "address"
-      }
-    ],
-    "name": "getOwnerRentals",
-    "outputs": [
-      {
-        "internalType": "contract RentalContract[]",
-        "name": "",
-        "type": "address[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_index",
-        "type": "uint256"
-      }
-    ],
-    "name": "getRentalContract",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_renter",
-        "type": "address"
-      }
-    ],
-    "name": "getRenterRentals",
-    "outputs": [
-      {
-        "internalType": "contract RentalContract[]",
-        "name": "",
-        "type": "address[]"
+        "type": "uint256[]"
       }
     ],
     "stateMutability": "view",
@@ -196,7 +188,7 @@
   },
   {
     "inputs": [],
-    "name": "getTotalRentalContracts",
+    "name": "getTotalPackages",
     "outputs": [
       {
         "internalType": "uint256",
@@ -215,7 +207,7 @@
         "type": "address"
       }
     ],
-    "name": "isValidRental",
+    "name": "isValidPackage",
     "outputs": [
       {
         "internalType": "bool",
@@ -230,40 +222,29 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "_address",
         "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
-    "name": "ownerRentals",
+    "name": "isValidSingleContract",
     "outputs": [
       {
-        "internalType": "contract RentalContract",
+        "internalType": "bool",
         "name": "",
-        "type": "address"
+        "type": "bool"
       }
     ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs": [],
+    "name": "nextPackageId",
+    "outputs": [
       {
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      }
-    ],
-    "name": "rentalContracts",
-    "outputs": [
-      {
-        "internalType": "contract RentalContract",
-        "name": "",
-        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -282,10 +263,42 @@
         "type": "uint256"
       }
     ],
-    "name": "renterRentals",
+    "name": "ownerPackages",
     "outputs": [
       {
-        "internalType": "contract RentalContract",
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "packages",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "token",
+    "outputs": [
+      {
+        "internalType": "contract IERC20",
         "name": "",
         "type": "address"
       }
