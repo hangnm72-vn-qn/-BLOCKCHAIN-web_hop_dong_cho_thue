@@ -3,32 +3,22 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "_renter",
+        "name": "_tokenAddress",
         "type": "address"
       },
       {
         "internalType": "address",
-        "name": "_arbitrator",
+        "name": "_owner",
         "type": "address"
       },
       {
-        "internalType": "uint256",
-        "name": "_rentalAmount",
-        "type": "uint256"
+        "internalType": "string",
+        "name": "_configType",
+        "type": "string"
       },
       {
         "internalType": "uint256",
-        "name": "_lateFeePerDay",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_itemValue",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_maxDamagePercent",
+        "name": "_pricePerHour",
         "type": "uint256"
       }
     ],
@@ -40,14 +30,14 @@
     "inputs": [
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "settler",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "contractId",
+        "type": "uint256"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "ownerPayout",
+        "name": "ownerPayment",
         "type": "uint256"
       },
       {
@@ -55,26 +45,20 @@
         "internalType": "uint256",
         "name": "renterRefund",
         "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "reason",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
       }
     ],
-    "name": "AutoSettled",
+    "name": "DiscountAccepted",
     "type": "event"
   },
   {
     "anonymous": false,
     "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "contractId",
+        "type": "uint256"
+      },
       {
         "indexed": true,
         "internalType": "address",
@@ -84,63 +68,38 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "proposedDeduction",
+        "name": "discountPercent",
         "type": "uint256"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "totalDamageCharges",
+        "name": "newPrice",
         "type": "uint256"
       },
       {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "maxAllowedDeduction",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
       }
     ],
-    "name": "DamageDeductionProposed",
+    "name": "DiscountProposed",
     "type": "event"
   },
   {
     "anonymous": false,
     "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "contractId",
+        "type": "uint256"
+      },
       {
         "indexed": true,
         "internalType": "address",
         "name": "renter",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "agreedDamageCharges",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
-      }
-    ],
-    "name": "DeductionAcceptedByRenter",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "raisedBy",
         "type": "address"
       },
       {
@@ -148,15 +107,9 @@
         "internalType": "string",
         "name": "reason",
         "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
       }
     ],
-    "name": "DisputeRaised",
+    "name": "IssueReported",
     "type": "event"
   },
   {
@@ -164,41 +117,10 @@
     "inputs": [
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "arbitrator",
-        "type": "address"
-      },
-      {
-        "indexed": false,
         "internalType": "uint256",
-        "name": "ownerPayout",
+        "name": "contractId",
         "type": "uint256"
       },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "renterRefund",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "resolution",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
-      }
-    ],
-    "name": "DisputeResolved",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
       {
         "indexed": true,
         "internalType": "address",
@@ -208,65 +130,28 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "rentalAmountPaidToOwner",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
+        "name": "minutesRemaining",
         "type": "uint256"
       }
     ],
-    "name": "ItemReceived",
+    "name": "LowTimeWarning",
     "type": "event"
   },
   {
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "renter",
-        "type": "address"
-      },
-      {
         "indexed": false,
         "internalType": "string",
-        "name": "photoHash",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "videoHash",
+        "name": "configType",
         "type": "string"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "returnedTime",
+        "name": "pricePerHour",
         "type": "uint256"
       },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "lateFeesApplied",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
-      }
-    ],
-    "name": "ItemReturned",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
       {
         "indexed": true,
         "internalType": "address",
@@ -276,19 +161,144 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "ownerPayout",
+        "name": "createdAt",
         "type": "uint256"
+      }
+    ],
+    "name": "PackageCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "enum SingleServerRental.ServerStatus",
+        "name": "oldStatus",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum SingleServerRental.ServerStatus",
+        "name": "newStatus",
+        "type": "uint8"
+      }
+    ],
+    "name": "PackageStatusChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "contractId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "renterRefund",
+        "name": "duration",
         "type": "uint256"
+      }
+    ],
+    "name": "RentalAutoCompleted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "contractId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "renter",
+        "type": "address"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "timestamp",
+        "name": "refundAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
+      }
+    ],
+    "name": "RentalCancelled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "contractId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "renter",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "refundAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
+      }
+    ],
+    "name": "RentalCancelledByOwner",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "contractId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "renter",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
         "type": "uint256"
       }
     ],
@@ -300,6 +310,12 @@
     "inputs": [
       {
         "indexed": true,
+        "internalType": "uint256",
+        "name": "contractId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
         "internalType": "address",
         "name": "renter",
         "type": "address"
@@ -307,288 +323,173 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "rentalAmount",
+        "name": "rentalHours",
         "type": "uint256"
       },
       {
         "indexed": false,
+        "internalType": "uint256",
+        "name": "totalPrice",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "confirmationDeadline",
+        "type": "uint256"
+      }
+    ],
+    "name": "RentalCreated",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_contractId",
+        "type": "uint256"
+      }
+    ],
+    "name": "acceptDiscount",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_contractId",
+        "type": "uint256"
+      }
+    ],
+    "name": "autoCompleteRental",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_contractId",
+        "type": "uint256"
+      }
+    ],
+    "name": "autoConfirmAfterDeadline",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_contractId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_reason",
+        "type": "string"
+      }
+    ],
+    "name": "cancelRentalByOwner",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_contractId",
+        "type": "uint256"
+      }
+    ],
+    "name": "confirmRental",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "contracts",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "renter",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "rentalHours",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalPrice",
+        "type": "uint256"
+      },
+      {
         "internalType": "uint256",
         "name": "depositAmount",
         "type": "uint256"
       },
       {
-        "indexed": false,
         "internalType": "uint256",
-        "name": "rentalEndTime",
+        "name": "finalPrice",
         "type": "uint256"
       },
       {
-        "indexed": false,
         "internalType": "uint256",
-        "name": "timestamp",
+        "name": "createdAt",
         "type": "uint256"
-      }
-    ],
-    "name": "RentalFunded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
+      },
       {
-        "indexed": false,
-        "internalType": "enum RentalContract.RentalStatus",
-        "name": "previousStatus",
+        "internalType": "uint256",
+        "name": "startTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "endTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "confirmationDeadline",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum SingleServerRental.TransactionStatus",
+        "name": "status",
         "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "enum RentalContract.RentalStatus",
-        "name": "newStatus",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
-      }
-    ],
-    "name": "StatusTransitioned",
-    "type": "event"
-  },
-  {
-    "inputs": [],
-    "name": "acceptDeduction",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "arbitrator",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "autoSettle",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "calculateDepositAmount",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "calculateOverdueDays",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "calculatePotentialLateFee",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "confirmItemReceived",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "confirmReceipt",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "damageCharges",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "depositAmount",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_rentalDays",
-        "type": "uint256"
-      }
-    ],
-    "name": "fundRental",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getAutoSettlePreview",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "ownerAdditionalPayout",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "renterRefund",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "secondsUntilAutoSettle",
-        "type": "uint256"
       },
       {
         "internalType": "bool",
-        "name": "canAutoSettle",
+        "name": "renterReportedIssue",
         "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getContractInfo",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "_owner",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_renter",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_arbitrator",
-        "type": "address"
       },
       {
         "internalType": "uint256",
-        "name": "_rentalAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_depositAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_lateFeePerDay",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_itemValue",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_maxDamagePercent",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getContractState",
-    "outputs": [
-      {
-        "internalType": "enum RentalContract.RentalStatus",
-        "name": "_status",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_rentalStartTime",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_rentalEndTime",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_returnedTime",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_damageCharges",
+        "name": "proposedDiscountPercent",
         "type": "uint256"
       },
       {
         "internalType": "string",
-        "name": "_renterReturnPhotoHash",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "_renterReturnVideoHash",
+        "name": "discountReason",
         "type": "string"
       }
     ],
@@ -597,25 +498,7 @@
   },
   {
     "inputs": [],
-    "name": "getExpectedPayouts",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "ownerAdditionalAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "renterAmount",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getMaxDamageDeduction",
+    "name": "escrowBalance",
     "outputs": [
       {
         "internalType": "uint256",
@@ -628,7 +511,181 @@
   },
   {
     "inputs": [],
-    "name": "getRemainingSettlementPeriod",
+    "name": "factory",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_contractId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getContract",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "id",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "renter",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "rentalHours",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "depositAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "finalPrice",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "createdAt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "confirmationDeadline",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum SingleServerRental.TransactionStatus",
+            "name": "status",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "renterReportedIssue",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "proposedDiscountPercent",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "discountReason",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct SingleServerRental.RentalContract",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_user",
+        "type": "address"
+      }
+    ],
+    "name": "getContractsByUser",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getPackage",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "configType",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pricePerHour",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "internalType": "enum SingleServerRental.ServerStatus",
+            "name": "status",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "createdAt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalRentals",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct SingleServerRental.ServerPackage",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_contractId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getRemainingConfirmationTime",
     "outputs": [
       {
         "internalType": "int256",
@@ -640,21 +697,33 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getStatusString",
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_contractId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getRemainingTime",
     "outputs": [
       {
-        "internalType": "string",
+        "internalType": "int256",
         "name": "",
-        "type": "string"
+        "type": "int256"
       }
     ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "itemValue",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_user",
+        "type": "address"
+      }
+    ],
+    "name": "getUserEscrow",
     "outputs": [
       {
         "internalType": "uint256",
@@ -667,20 +736,7 @@
   },
   {
     "inputs": [],
-    "name": "lateFeePerDay",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "maxDamagePercent",
+    "name": "nextContractId",
     "outputs": [
       {
         "internalType": "uint256",
@@ -696,7 +752,7 @@
     "name": "owner",
     "outputs": [
       {
-        "internalType": "address",
+        "internalType": "address payable",
         "name": "",
         "type": "address"
       }
@@ -705,89 +761,149 @@
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs": [],
+    "name": "package",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "configType",
+        "type": "string"
+      },
       {
         "internalType": "uint256",
-        "name": "_additionalDeduction",
+        "name": "pricePerHour",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "enum SingleServerRental.ServerStatus",
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "createdAt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalRentals",
         "type": "uint256"
       }
     ],
-    "name": "proposeDamageDeduction",
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pausePackage",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_contractId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_discountPercent",
+        "type": "uint256"
+      },
       {
         "internalType": "string",
         "name": "_reason",
         "type": "string"
       }
     ],
-    "name": "raiseDispute",
+    "name": "proposeDiscountForIssue",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_contractId",
+        "type": "uint256"
+      }
+    ],
+    "name": "rejectDiscount",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_rentalHours",
+        "type": "uint256"
+      }
+    ],
+    "name": "rentServer",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_contractId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_reason",
+        "type": "string"
+      }
+    ],
+    "name": "reportIssue",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [],
-    "name": "rentalAmount",
-    "outputs": [
+    "name": "resumePackage",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "_contractId",
         "type": "uint256"
       }
     ],
-    "stateMutability": "view",
+    "name": "sendLowTimeWarning",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [],
-    "name": "rentalEndTime",
+    "name": "token",
     "outputs": [
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "rentalStartTime",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "rentalStatus",
-    "outputs": [
-      {
-        "internalType": "enum RentalContract.RentalStatus",
-        "name": "",
-        "type": "uint8"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "renter",
-    "outputs": [
-      {
-        "internalType": "address",
+        "internalType": "contract IERC20",
         "name": "",
         "type": "address"
       }
@@ -796,45 +912,14 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "renterReturnPhotoHash",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "renterReturnVideoHash",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_finalDeduction",
+        "name": "_newPrice",
         "type": "uint256"
-      },
-      {
-        "internalType": "string",
-        "name": "_resolution",
-        "type": "string"
       }
     ],
-    "name": "resolveDispute",
+    "name": "updatePrice",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -842,24 +927,36 @@
   {
     "inputs": [
       {
-        "internalType": "string",
-        "name": "_photoHash",
-        "type": "string"
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       },
       {
-        "internalType": "string",
-        "name": "_videoHash",
-        "type": "string"
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
-    "name": "returnItem",
-    "outputs": [],
-    "stateMutability": "nonpayable",
+    "name": "userContracts",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "returnedTime",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "userEscrow",
     "outputs": [
       {
         "internalType": "uint256",

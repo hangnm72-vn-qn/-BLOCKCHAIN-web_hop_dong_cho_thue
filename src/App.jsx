@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import ProductDetail from './pages/ProductDetail';
 import Login from './pages/Login';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { createRentalFactoryContract, SEPOLIA_CHAIN_ID } from './contracts/rentalFactoryConfig';
 
 function App() {
   const [walletAddress, setWalletAddress] = useState('');
@@ -13,7 +14,7 @@ function App() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [walletError, setWalletError] = useState('');
   const [factoryTotalContracts, setFactoryTotalContracts] = useState('0');
-  const [factoryArbitrator, setFactoryArbitrator] = useState('');
+  const [factoryToken, setFactoryToken] = useState('');
   const [factoryStatus, setFactoryStatus] = useState('Chưa kết nối contract');
 
   // Lấy số dư ETH của một địa chỉ ví
@@ -31,26 +32,26 @@ function App() {
       if (network.chainId !== SEPOLIA_CHAIN_ID) {
         setFactoryStatus('Hợp đồng chỉ hoạt động trên Sepolia');
         setFactoryTotalContracts('0');
-        setFactoryArbitrator('');
+        setFactoryToken('');
         setWalletError('Vui lòng chuyển MetaMask sang mạng Sepolia để đọc Smart Contract.');
         return;
       }
 
       const rentalFactoryContract = createRentalFactoryContract(provider);
 
-      const [totalContracts, arbitrator] = await Promise.all([
-        rentalFactoryContract.getTotalRentalContracts(),
-        rentalFactoryContract.arbitrator(),
+      const [totalContracts, tokenAddress] = await Promise.all([
+        rentalFactoryContract.getTotalPackages(),
+        rentalFactoryContract.token(),
       ]);
 
       setFactoryTotalContracts(totalContracts.toString());
-      setFactoryArbitrator(arbitrator);
+      setFactoryToken(tokenAddress);
       setFactoryStatus('Đã kết nối RentalFactory trên Sepolia');
       setWalletError('');
     } catch (error) {
       setFactoryStatus('Không đọc được dữ liệu contract');
       setFactoryTotalContracts('0');
-      setFactoryArbitrator('');
+      setFactoryToken('');
       setWalletError(error instanceof Error ? error.message : 'Không thể đọc Smart Contract.');
     }
   };
@@ -98,7 +99,7 @@ function App() {
         setWalletAddress('');
         setWalletBalance('0.0');
         setFactoryTotalContracts('0');
-        setFactoryArbitrator('');
+        setFactoryToken('');
         setFactoryStatus('Chưa kết nối contract');
         return;
       }
