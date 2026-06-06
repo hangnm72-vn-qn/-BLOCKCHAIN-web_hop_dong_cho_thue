@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import { getAllProducts } from '../Service - Ân/productService';
@@ -21,21 +21,21 @@ function Home() {
       {/* Khu vực Tìm kiếm & Bộ lọc nhanh */}
       <div className="flex flex-col md:flex-row gap-4 items-end justify-between bg-slate-900/40 p-6 rounded-2xl border border-slate-800">
         <Input
-          label="Tìm kiếm trang phục thiết kế"
-          placeholder="Nhập tên váy, thương hiệu... (Ví dụ: Đầm Dạ Hội)"
+          label="Tìm kiếm gói máy chủ"
+          placeholder="Nhập tên gói, ram... (Ví dụ: GPU RTX 3090)"
           className="max-w-md"
         />
         <div className="flex gap-2 w-full md:w-auto">
           <Button variant="secondary" className="w-full md:w-auto">Tất cả</Button>
-          <Button variant="secondary" className="w-full md:w-auto text-slate-400">Đầm Dạ Hội</Button>
-          <Button variant="secondary" className="w-full md:w-auto text-slate-400">Váy Cưới</Button>
+          <Button variant="secondary" className="w-full md:w-auto text-slate-400">GPU RTX 3090</Button>
+          <Button variant="secondary" className="w-full md:w-auto text-slate-400">GPU RTX 4090</Button>
         </div>
       </div>
 
-      {/* Danh sách sản phẩm */}
+      {/* Danh sách gói máy chủ VPS */}
       <div>
         <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-          ✨ Bộ Sưu Tập Trang Phục Thiết Kế Cao Cấp ✨
+          Các gói máy chủ VPS sẵn có 
         </h3>
 
         {loading ? (
@@ -45,9 +45,17 @@ function Home() {
             {products.map((product) => (
               <div
                 key={product._id}
-                className="group bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-blue-500/50 transition-all duration-300 flex flex-col justify-between"
+                className="group bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-blue-500/50 transition-all duration-300 flex flex-col justify-between relative"
               >
-                <div className="h-64 overflow-hidden bg-slate-950">
+                {/* THÊM NHÃN TRẠNG THÁI AVAILABLE Ở GÓC TRÊN ẢNH */}
+                <div className="absolute top-3 right-3 z-10">
+                  <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    Available
+                  </span>
+                </div>
+
+                {/* Khu vực ảnh minh họa cho VPS */}
+                <div className="h-48 overflow-hidden bg-slate-950">
                   <img
                     src={product.images[0]}
                     alt={product.title}
@@ -63,12 +71,13 @@ function Home() {
 
                     <div className="mt-4 space-y-1.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800/60 text-xs">
                       <div className="flex justify-between">
-                        <span className="text-slate-500">Giá thuê / ngày:</span>
-                        <span className="font-bold text-blue-400">{product.pricePerDay.toLocaleString()} VNĐ</span>
+                        <span className="text-slate-500">Giá thuê / giờ:</span>
+                        {/* Tạm thời giữ dữ liệu cũ nhưng đổi đơn vị hiển thị thành Token/Giờ */}
+                        <span className="font-bold text-blue-400">{product.pricePerDay} Token</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-500">Tiền đặt cọc (Khóa ví):</span>
-                        <span className="font-bold text-amber-500">{product.depositAmount.toLocaleString()} VNĐ</span>
+                        <span className="text-slate-500">Tiền cọc (Khóa ví trung gian):</span>
+                        <span className="font-bold text-amber-500">{product.depositAmount} Token</span>
                       </div>
                     </div>
                   </div>
@@ -78,7 +87,7 @@ function Home() {
                     className="w-full mt-4 text-xs py-2"
                     onClick={() => window.location.href = `/product/${product._id}`}
                   >
-                    Xem chi tiết điều khoản
+                    Xem chi tiết & Thuê máy
                   </Button>
                 </div>
               </div>
