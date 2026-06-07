@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import ProductDetail from './pages/ProductDetail';
+import Dashboard from './pages/Dashboard';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { createRentalFactoryContract, SEPOLIA_CHAIN_ID } from './contracts/rentalFactoryConfig';
 
@@ -15,6 +16,7 @@ function App() {
   const [factoryTotalContracts, setFactoryTotalContracts] = useState('0');
   const [factoryToken, setFactoryToken] = useState('');
   const [factoryStatus, setFactoryStatus] = useState('Chưa kết nối contract');
+  const [role, setRole] = useState('renter'); // Mặc định ban đầu là 'renter'
 
   // Lấy số dư ETH của một địa chỉ ví
   const updateWalletData = async (provider, address) => {
@@ -129,11 +131,14 @@ function App() {
             walletAddress={walletAddress}
             walletBalance={walletBalance}
             isConnecting={isConnecting}
+            currentRole={role}
+            onChangeRole={setRole}
           />
           <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 text-center mt-10">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/product/:id" element={<ProductDetail />} />
+              <Route path="/dashboard" element={<Dashboard currentRole={role} />} />
             </Routes>
           </main>
         </div>
