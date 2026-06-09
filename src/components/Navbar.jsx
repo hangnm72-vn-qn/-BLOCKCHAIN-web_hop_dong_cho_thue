@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, currentRole = 'renter', onChangeRole }) {
   const hasWalletData = Boolean(walletAddress);
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <nav className="flex justify-between items-center p-4 bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-50">
-      <div className="font-bold text-xl flex items-center gap-2">
+      <Link to="/" 
+  className="font-bold text-xl flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity select-none">
         <span>🛡️</span> TrustRent
-      </div>
+      </Link>
 
       <div className="flex items-center gap-4">
         
@@ -30,10 +34,10 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
               
               <div className="absolute right-0 mt-2 w-44 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
                 
-                {/* Lựa chọn 1: Khách thuê */}
+                {/* Lựa chọn 1: Khách hàng */}
                 <button 
                   type="button"
-                  onClick={() => { onChangeRole('renter'); setIsOpen(false); }}
+                  onClick={() => { onChangeRole('renter'); setIsOpen(false); navigate('/dashboard'); }}
                   className={`w-full text-left px-4 py-3 text-xs font-medium cursor-pointer transition-colors ${
                     currentRole === 'renter' 
                       ? 'text-blue-400 bg-blue-950/40 font-bold border-l-2 border-blue-500' 
@@ -46,7 +50,7 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
                 {/* Lựa chọn 2: Chủ máy */}
                 <button 
                   type="button"
-                  onClick={() => { onChangeRole('lessor'); setIsOpen(false); }}
+                  onClick={() => { onChangeRole('lessor'); setIsOpen(false); navigate('/dashboard'); }}
                   className={`w-full text-left px-4 py-3 text-xs font-medium cursor-pointer transition-colors ${
                     currentRole === 'lessor' 
                       ? 'text-emerald-400 bg-emerald-950/40 font-bold border-l-2 border-emerald-500' 
