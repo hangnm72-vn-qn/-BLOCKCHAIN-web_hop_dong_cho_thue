@@ -18,11 +18,24 @@ function App() {
   const [factoryStatus, setFactoryStatus] = useState('Chưa kết nối contract');
   const [role, setRole] = useState('renter'); // Mặc định ban đầu là 'renter'
 
+  const persistWalletState = (address, balance) => {
+    if (address) {
+      localStorage.setItem('trustrent.walletAddress', address);
+      localStorage.setItem('trustrent.walletBalance', balance);
+      return;
+    }
+
+    localStorage.removeItem('trustrent.walletAddress');
+    localStorage.removeItem('trustrent.walletBalance');
+  };
+
   // Lấy số dư ETH của một địa chỉ ví
   const updateWalletData = async (provider, address) => {
     const balance = await provider.getBalance(address);
+    const formattedBalance = Number(formatEther(balance)).toFixed(4);
     setWalletAddress(address);
-    setWalletBalance(Number(formatEther(balance)).toFixed(4));
+    setWalletBalance(formattedBalance);
+    persistWalletState(address, formattedBalance);
   };
 
   // Khởi tạo RentalFactory bằng ABI + address rồi đọc dữ liệu on-chain để xác nhận contract hoạt động.
@@ -55,6 +68,31 @@ function App() {
       setFactoryToken('');
       setWalletError(error instanceof Error ? error.message : 'Không thể đọc Smart Contract.');
     }
+  };
+
+  const restoreWalletSession = async () => {
+    if (!window.ethereum) {
+      return;
+    }
+
+    const savedAddress = localStorage.getItem('trustrent.walletAddress');
+    const provider = new BrowserProvider(window.ethereum);
+    const accounts = await provider.send('eth_accounts', []);
+
+    if (!accounts.length) {
+      if (savedAddress) {
+        persistWalletState('', '0.0');
+      }
+      return;
+    }
+
+    const activeAccount = accounts[0];
+    if (savedAddress && savedAddress.toLowerCase() !== activeAccount.toLowerCase()) {
+      persistWalletState(activeAccount, localStorage.getItem('trustrent.walletBalance') || '0.0');
+    }
+
+    await updateWalletData(provider, activeAccount);
+    await syncFactoryData(provider);
   };
 
   // Kích hoạt MetaMask để xin quyền kết nối
@@ -115,6 +153,10 @@ function App() {
 
     window.ethereum.on('accountsChanged', handleAccountsChanged);
     window.ethereum.on('chainChanged', handleChainChanged);
+
+    restoreWalletSession().catch((error) => {
+      setWalletError(error instanceof Error ? error.message : 'Không thể khôi phục phiên ví.');
+    });
 
     return () => {
       window.ethereum.removeListener('accountsChanged', handleAccountsChanged);

@@ -1,6 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { BrowserProvider, Contract, parseUnits } from 'ethers';
+import { useNavigate } from 'react-router-dom';
+import { createProduct } from '../Service - Ân/productService';
+import { createRentalFactoryContract, SEPOLIA_CHAIN_ID } from '../contracts/rentalFactoryConfig';
 
 function Dashboard({ currentRole }) {
+  const navigate = useNavigate();
+
   // 1. PHẦN MOCK DATA & STATE CHO KHÁCH THUÊ (LESSEE)
   
   // Giả lập dữ liệu trả về từ API của Ân (IP, Port, Pass dùng một lần)
@@ -16,6 +22,18 @@ function Dashboard({ currentRole }) {
   const [timeLeft, setTimeLeft] = useState(590); 
   const [showToast, setShowToast] = useState(false);
   const [showNegotiation, setShowNegotiation] = useState(false);
+
+  // 2. STATE CHO FORM CHỦ MÁY
+  const [serverForm, setServerForm] = useState({
+    title: '',
+    description: '',
+    pricePerHour: '',
+    condition: '',
+    ownerAddress: localStorage.getItem('trustrent.walletAddress') || '',
+  });
+  const [imageFile, setImageFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState('');
 
   // Logic chạy đồng hồ đếm ngược bằng JavaScript
   useEffect(() => {
@@ -53,6 +71,85 @@ function Dashboard({ currentRole }) {
   const handleReportError = () => {
     setServerData(prev => ({ ...prev, status: 'Dispute' }));
     setShowNegotiation(true); // Mở khung thương lượng công việc
+  };
+
+  const handleServerFormChange = (field, value) => {
+    setServerForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCreateServer = async () => {
+    if (!serverForm.title || !serverForm.pricePerHour || !serverForm.ownerAddress || !imageFile) {
+      setSubmitMessage('Vui lòng nhập đủ tên gói, giá thuê, địa chỉ ví và ảnh đại diện.');
+      return;
+    }
+
+    if (!window.ethereum) {
+      setSubmitMessage('Vui lòng cài đặt MetaMask để gọi smart contract.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setSubmitMessage('');
+
+      const provider = new BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+
+      if (network.chainId !== SEPOLIA_CHAIN_ID) {
+        setSubmitMessage('Vui lòng chuyển MetaMask sang mạng Sepolia trước khi thêm máy chủ.');
+        return;
+      }
+
+      const signer = await provider.getSigner();
+      const factoryContract = createRentalFactoryContract(signer);
+      const tokenAddress = await factoryContract.token();
+      const tokenContract = new Contract(tokenAddress, ['function decimals() view returns (uint8)'], provider);
+
+      let tokenDecimals = 18;
+      try {
+        tokenDecimals = Number(await tokenContract.decimals());
+      } catch {
+        tokenDecimals = 18;
+      }
+
+      const onChainPrice = parseUnits(String(serverForm.pricePerHour), tokenDecimals);
+      const tx = await factoryContract.createServerPackage(serverForm.title, onChainPrice);
+
+      setSubmitMessage('Đã gửi giao dịch lên smart contract, đang chờ xác nhận...');
+      await tx.wait();
+
+      await createProduct(
+        serverForm.title,
+        serverForm.description,
+        serverForm.pricePerHour,
+        serverForm.ownerAddress,
+        serverForm.condition,
+        imageFile
+      );
+
+      setSubmitMessage('Đã thêm máy chủ thành công trên smart contract và backend. Đang chuyển về trang chủ...');
+      setServerForm({
+        title: '',
+        description: '',
+        pricePerHour: '',
+        condition: '',
+        ownerAddress: localStorage.getItem('trustrent.walletAddress') || '',
+      });
+      setImageFile(null);
+
+      setTimeout(() => {
+        navigate('/');
+      }, 1200);
+    } catch (error) {
+      if (error?.code === 4001) {
+        setSubmitMessage('Bạn đã hủy giao dịch trên MetaMask.');
+        return;
+      }
+
+      setSubmitMessage(error?.response?.data?.message || 'Không thể thêm máy chủ. Vui lòng thử lại.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -171,33 +268,89 @@ function Dashboard({ currentRole }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-left">
                 <div className="sm:col-span-2">
                   <label className="text-slate-400 block mb-1">Tên gói máy chủ</label>
-                  <input type="text" placeholder="Ví dụ: Google Cloud VPS - High Performance" className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500" />
+                  <input
+                    type="text"
+                    value={serverForm.title}
+                    onChange={(e) => handleServerFormChange('title', e.target.value)}
+                    placeholder="Ví dụ: Google Cloud VPS - High Performance"
+                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
+                  />
                 </div>
                 <div>
                   <label className="text-slate-400 block mb-1">Cấu hình CPU</label>
-                  <input type="text" placeholder="Ví dụ: 4 vCPU" className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500" />
+                  <input
+                    type="text"
+                    value={serverForm.description}
+                    onChange={(e) => handleServerFormChange('description', e.target.value)}
+                    placeholder="Ví dụ: 4 vCPU"
+                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
+                  />
                 </div>
                 <div>
                   <label className="text-slate-400 block mb-1">Dung lượng RAM</label>
-                  <input type="text" placeholder="Ví dụ: 16 GB" className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500" />
+                  <input
+                    type="text"
+                    value={serverForm.condition}
+                    onChange={(e) => handleServerFormChange('condition', e.target.value)}
+                    placeholder="Ví dụ: 16 GB"
+                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
+                  />
                 </div>
                 <div>
                   <label className="text-slate-400 block mb-1">Thông số GPU (Nếu có)</label>
-                  <input type="text" placeholder="Ví dụ: NVIDIA T4 (Tùy chọn)" className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500" />
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: NVIDIA T4 (Tùy chọn)"
+                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
+                  />
                 </div>
                 <div>
                   <label className="text-slate-400 block mb-1">Giá thuê (Token/giờ)</label>
-                  <input type="number" placeholder="Ví dụ: 10" className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500" />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    value={serverForm.pricePerHour}
+                    onChange={(e) => handleServerFormChange('pricePerHour', e.target.value)}
+                    placeholder="Ví dụ: 10"
+                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-slate-400 block mb-1">Địa chỉ ví chủ máy</label>
+                  <input
+                    type="text"
+                    value={serverForm.ownerAddress}
+                    onChange={(e) => handleServerFormChange('ownerAddress', e.target.value)}
+                    placeholder="0x..."
+                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-slate-400 block mb-1">Ảnh minh họa máy chủ</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
+                  />
                 </div>
               </div>
+
+              {submitMessage && (
+                <p className={`text-xs ${submitMessage.includes('thành công') ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {submitMessage}
+                </p>
+              )}
 
               {/* Nút đăng máy */}
               <button 
                 type="button" 
-                onClick={() => alert("Đã kích hoạt hàm Web3 của Hạnh: Đẩy thông số VPS lên Smart Contract thành công và đặt trạng thái là [Available]!")}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors cursor-pointer mt-2 shadow-lg shadow-emerald-950/20"
+                onClick={handleCreateServer}
+                disabled={isSubmitting}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors cursor-pointer mt-2 shadow-lg shadow-emerald-950/20"
               >
-                Thêm máy chủ vào trang
+                {isSubmitting ? 'Đang thêm máy...' : 'Thêm máy chủ vào trang'}
               </button>
             </form>
 

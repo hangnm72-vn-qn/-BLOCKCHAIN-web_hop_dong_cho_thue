@@ -13,11 +13,11 @@ export const getProductById = async (id) => {
 }
 
 // Đăng gói máy chủ mới
-export const createProduct = async (title, description, pricePerDay, ownerAddress, condition, imageFile) => {
+export const createProduct = async (title, description, pricePerHour, ownerAddress, condition, imageFile) => {
     const formData = new FormData()
     formData.append('title', title)
     formData.append('description', description)
-    formData.append('pricePerDay', pricePerDay)
+    formData.append('pricePerHour', pricePerHour)
     formData.append('depositAmount', 0) // Mặc định 0 theo yêu cầu mới
     formData.append('ownerAddress', ownerAddress)
     formData.append('condition', condition)

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { getProductById } from "../Service - Ân/productService"
+import { getProductById, updateProductStatus } from "../Service - Ân/productService"
 import { useParams, useNavigate } from 'react-router-dom';
+import { BrowserProvider, Contract, parseUnits } from 'ethers';
+import { createRentalFactoryContract, createSingleContract, SEPOLIA_CHAIN_ID } from '../contracts/rentalFactoryConfig';
 
 function ProductDetail() {
   const { id } = useParams();
@@ -12,6 +14,9 @@ function ProductDetail() {
 
   // THÊM STATE QUẢN LÝ SỐ GIỜ THUÊ (Mặc định ban đầu là 1 giờ)
   const [rentHours, setRentHours] = useState(1);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [contractId, setContractId] = useState(null);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -117,7 +122,7 @@ function ProductDetail() {
                 Giá thuê / giờ
               </label>
               <div className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-blue-400 font-bold text-sm h-[46px] flex items-center">
-                {product.pricePerDay} Token
+                {product.pricePerHour} Token
               </div>
             </div>
           </div>
@@ -128,8 +133,116 @@ function ProductDetail() {
               Quay Lại Trang Chủ
             </Button>
             {product.status === 'Available' ? (
-              <Button variant="primary" className="flex-[2] font-bold text-base bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20">
-                ⚡ Thuê Ngay (Khóa Cọc {product.depositAmount} Token)
+              <Button
+                variant="primary"
+                className="flex-[2] font-bold text-base bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20"
+                onClick={async () => {
+                  // Hàm thuê máy: tính tổng token và gọi contract rentServer
+                  try {
+                    setIsProcessing(true);
+                    setMessage('');
+
+                    if (!window.ethereum) {
+                      setMessage('Vui lòng cài đặt MetaMask để tiếp tục.');
+                      return;
+                    }
+
+                    const provider = new BrowserProvider(window.ethereum);
+                    const network = await provider.getNetwork();
+                    if (network.chainId !== SEPOLIA_CHAIN_ID) {
+                      setMessage('Vui lòng chuyển MetaMask sang mạng Sepolia.');
+                      return;
+                    }
+
+                    const signer = await provider.getSigner();
+                    const factory = createRentalFactoryContract(signer);
+
+                    // Lấy địa chỉ token và decimals
+                    const tokenAddress = await factory.token();
+                    const tokenContract = new Contract(
+                      tokenAddress,
+                      [
+                        'function approve(address,uint256) returns (bool)',
+                        'function decimals() view returns (uint8)'
+                      ],
+                      signer
+                    );
+
+                    let decimals = 18;
+                    try {
+                      decimals = Number(await tokenContract.decimals());
+                    } catch (e) {
+                      decimals = 18;
+                    }
+
+                    // Tính tổng tiền (pricePerHour * hours)
+                    const totalPrice = Number(product.pricePerHour) * Number(rentHours);
+                    if (totalPrice <= 0) {
+                      setMessage('Số giờ thuê không hợp lệ.');
+                      return;
+                    }
+
+                    const totalAmount = parseUnits(String(totalPrice), decimals);
+
+                    // Tìm package contract address tương ứng (nếu backend chưa lưu contractAddress)
+                    let packageAddress = product.contractAddress || '';
+                    if (!packageAddress) {
+                      // Tìm theo owner và so sánh giá
+                      const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
+                      const perHourOnChain = parseUnits(String(product.pricePerHour), decimals);
+                      for (let i = 0; i < packageIds.length; i++) {
+                        const pkgId = packageIds[i];
+                        const info = await factory.getPackageInfo(pkgId);
+                        try {
+                          if (info.pricePerHour.toString() === perHourOnChain.toString()) {
+                            packageAddress = await factory.getPackageAddress(pkgId);
+                            break;
+                          }
+                        } catch (e) {
+                          // ignore
+                        }
+                      }
+                    }
+
+                    if (!packageAddress) {
+                      setMessage('Không tìm thấy contract gói máy trên blockchain. Vui lòng cấu hình contractAddress trong backend.');
+                      return;
+                    }
+
+                    const single = createSingleContract(packageAddress, signer);
+
+                    // Approve token transfer to the single contract (giam tiền)
+                    const approveTx = await tokenContract.approve(packageAddress, totalAmount);
+                    setMessage('Đang phê duyệt token trên MetaMask...');
+                    await approveTx.wait();
+
+                    // Gọi rentServer
+                    const rentTx = await single.rentServer(Number(rentHours));
+                    setMessage('Gửi lệnh thuê, chờ xử lý trên chain...');
+                    const receipt = await rentTx.wait();
+
+                    // Lấy contractId mới
+                    let nextId = await single.nextContractId();
+                    const newContractId = Number(nextId.toString()) - 1;
+                    setContractId(newContractId);
+
+                    // Đồng bộ trạng thái lên backend (Pending)
+                    try {
+                      await updateProductStatus(product._id, 'Pending');
+                    } catch (e) {
+                      // Không bắt buộc thành công
+                    }
+
+                    setMessage('Thuê thành công. ContractId: ' + newContractId);
+                  } catch (err) {
+                    console.error(err);
+                    setMessage(err?.message || 'Lỗi khi thuê máy.');
+                  } finally {
+                    setIsProcessing(false);
+                  }
+                }}
+              >
+                {isProcessing ? 'Đang xử lý...' : `⚡ Thuê Ngay (Khóa Cọc ${product.depositAmount} Token)`}
               </Button>
             ) : (
               <Button variant="primary" className="flex-[2] font-bold text-base bg-slate-600 cursor-not-allowed" disabled>
@@ -141,6 +254,134 @@ function ProductDetail() {
           <p className="text-[11px] text-slate-500 text-center italic">
             *Bấm Thuê Ngay sẽ kích hoạt ví MetaMask để thực hiện khóa Token đặt cọc vào Hợp đồng.
           </p>
+          {message && (
+            <p className={`text-xs ${message.includes('thành công') ? 'text-emerald-400' : 'text-rose-400'}`}>{message}</p>
+          )}
+
+          {/* Nếu đã có contractId trên chain, hiển thị các nút xử lý 10 phút */}
+          {contractId && (
+            <div className="mt-3 flex gap-2">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={async () => {
+                  try {
+                    setIsProcessing(true);
+                    setMessage('Gửi xác nhận OK lên chain...');
+                    const provider = new BrowserProvider(window.ethereum);
+                    const signer = await provider.getSigner();
+                    const factory = createRentalFactoryContract(signer);
+                    // Lấy packageAddress như trên
+                    let packageAddress = product.contractAddress || '';
+                    if (!packageAddress) {
+                      const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
+                      const perHourOnChain = parseUnits(String(product.pricePerHour), 18);
+                      for (let i = 0; i < packageIds.length; i++) {
+                        const pkgId = packageIds[i];
+                        const info = await factory.getPackageInfo(pkgId);
+                        try {
+                          if (info.pricePerHour.toString() === perHourOnChain.toString()) {
+                            packageAddress = await factory.getPackageAddress(pkgId);
+                            break;
+                          }
+                        } catch (e) {}
+                      }
+                    }
+
+                    const single = createSingleContract(packageAddress, signer);
+                    const tx = await single.confirmRental(contractId);
+                    await tx.wait();
+                    setMessage('Xác nhận OK đã được ghi nhận trên chain.');
+                    // Đồng bộ backend
+                    try { await updateProductStatus(product._id, 'Active'); } catch (e) {}
+                  } catch (e) {
+                    console.error(e);
+                    setMessage('Lỗi khi xác nhận OK: ' + (e?.message || '')); 
+                  } finally { setIsProcessing(false); }
+                }}
+              >
+                Xác nhận OK
+              </Button>
+
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={async () => {
+                  // Khách chấp nhận giảm giá (ví dụ 20%)
+                  try {
+                    setIsProcessing(true);
+                    setMessage('Gửi lệnh chấp nhận giảm giá...');
+                    const provider = new BrowserProvider(window.ethereum);
+                    const signer = await provider.getSigner();
+                    const factory = createRentalFactoryContract(signer);
+                    let packageAddress = product.contractAddress || '';
+                    if (!packageAddress) {
+                      const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
+                      for (let i = 0; i < packageIds.length; i++) {
+                        const pkgId = packageIds[i];
+                        const info = await factory.getPackageInfo(pkgId);
+                        try {
+                          if (info.pricePerHour.toString() === parseUnits(String(product.pricePerHour), 18).toString()) {
+                            packageAddress = await factory.getPackageAddress(pkgId);
+                            break;
+                          }
+                        } catch (e) {}
+                      }
+                    }
+                    const single = createSingleContract(packageAddress, signer);
+                    const tx = await single.acceptDiscount(contractId);
+                    await tx.wait();
+                    setMessage('Đã chấp nhận giảm giá, giao dịch xử lý xong.');
+                    try { await updateProductStatus(product._id, 'Available'); } catch (e) {}
+                  } catch (e) {
+                    console.error(e);
+                    setMessage('Lỗi khi chấp nhận giảm giá: ' + (e?.message || ''));
+                  } finally { setIsProcessing(false); }
+                }}
+              >
+                Đồng ý giảm giá 20%
+              </Button>
+
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={async () => {
+                  // Khách từ chối và yêu cầu hoàn tiền
+                  try {
+                    setIsProcessing(true);
+                    setMessage('Gửi lệnh hoàn tiền (reject) lên chain...');
+                    const provider = new BrowserProvider(window.ethereum);
+                    const signer = await provider.getSigner();
+                    const factory = createRentalFactoryContract(signer);
+                    let packageAddress = product.contractAddress || '';
+                    if (!packageAddress) {
+                      const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
+                      for (let i = 0; i < packageIds.length; i++) {
+                        const pkgId = packageIds[i];
+                        const info = await factory.getPackageInfo(pkgId);
+                        try {
+                          if (info.pricePerHour.toString() === parseUnits(String(product.pricePerHour), 18).toString()) {
+                            packageAddress = await factory.getPackageAddress(pkgId);
+                            break;
+                          }
+                        } catch (e) {}
+                      }
+                    }
+                    const single = createSingleContract(packageAddress, signer);
+                    const tx = await single.rejectDiscount(contractId);
+                    await tx.wait();
+                    setMessage('Đã hủy & hoàn tiền 100% cho khách.');
+                    try { await updateProductStatus(product._id, 'Available'); } catch (e) {}
+                  } catch (e) {
+                    console.error(e);
+                    setMessage('Lỗi khi huỷ & hoàn tiền: ' + (e?.message || ''));
+                  } finally { setIsProcessing(false); }
+                }}
+              >
+                Hủy và hoàn tiền
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

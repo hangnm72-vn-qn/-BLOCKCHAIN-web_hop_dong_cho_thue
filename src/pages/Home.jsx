@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import { getAllProducts } from '../Service - Ân/productService';
 
 function Home() {
+  const navigate = useNavigate();
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -85,7 +87,7 @@ function Home() {
                   <Button
                     variant="primary"
                     className="w-full mt-4 text-xs py-2"
-                    onClick={() => window.location.href = `/product/${product._id}`}
+                    onClick={() => navigate(`/product/${product._id}`)}
                   >
                     Xem chi tiết & Thuê máy
                   </Button>
