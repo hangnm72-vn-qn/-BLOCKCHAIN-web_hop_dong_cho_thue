@@ -27,6 +27,12 @@ export const createProduct = async (title, description, pricePerHour, ownerAddre
     return response.data
 }
 
+// Kích hoạt tài nguyên máy sau khi on-chain rentServer thành công
+export const provisionProduct = async (productId, renterAddress) => {
+    const response = await api.post(`/products/${productId}/provision`, { renterAddress })
+    return response.data
+}
+
 // Cập nhật trạng thái 1 máy chủ
 export const updateProductStatus = async (id, status) => {
     const response = await api.put(`/products/${id}/status`, { status })

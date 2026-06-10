@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { getProductById, updateProductStatus } from "../Service - Ân/productService"
+import { getProductById, updateProductStatus, provisionProduct } from "../Service - Ân/productService"
 import { useParams, useNavigate } from 'react-router-dom';
 import { BrowserProvider, Contract, parseUnits } from 'ethers';
 import { createRentalFactoryContract, createSingleContract, SEPOLIA_CHAIN_ID } from '../contracts/rentalFactoryConfig';
@@ -17,6 +17,7 @@ function ProductDetail() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [contractId, setContractId] = useState(null);
   const [message, setMessage] = useState('');
+  const [credentials, setCredentials] = useState(null);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -226,13 +227,20 @@ function ProductDetail() {
                     const newContractId = Number(nextId.toString()) - 1;
                     setContractId(newContractId);
 
-                    // Đồng bộ trạng thái lên backend (Pending)
+                    // Lấy địa chỉ ví người thuê từ signer
+                    const renterAddress = await signer.getAddress();
+
+                    // Gọi backend provision để kích hoạt tài nguyên và lấy credentials
                     try {
-                      await updateProductStatus(product._id, 'Pending');
+                      const prov = await provisionProduct(product._id, renterAddress);
+                      if (prov && prov.data && prov.data.credentials) {
+                        setCredentials(prov.data.credentials);
+                      }
                     } catch (e) {
-                      // Không bắt buộc thành công
+                      // không bắt buộc thành công
                     }
 
+                    // Đồng bộ trạng thái lên UI
                     setMessage('Thuê thành công. ContractId: ' + newContractId);
                   } catch (err) {
                     console.error(err);
@@ -256,6 +264,19 @@ function ProductDetail() {
           </p>
           {message && (
             <p className={`text-xs ${message.includes('thành công') ? 'text-emerald-400' : 'text-rose-400'}`}>{message}</p>
+          )}
+
+          {/* Hiển thị credentials khi backend trả về sau provision */}
+          {credentials && (
+            <div className="mt-3 bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm">
+              <h4 className="text-xs font-bold text-slate-300 mb-2">Thông tin bàn giao VPS</h4>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>IP: <span className="font-mono">{credentials.ip}</span></div>
+                <div>Port: <span className="font-mono">{credentials.port}</span></div>
+                <div>Username: <span className="font-mono">{credentials.username}</span></div>
+                <div>Password: <span className="font-mono">{credentials.password}</span></div>
+              </div>
+            </div>
           )}
 
           {/* Nếu đã có contractId trên chain, hiển thị các nút xử lý 10 phút */}
