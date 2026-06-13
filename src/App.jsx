@@ -16,7 +16,17 @@ function App() {
   const [factoryTotalContracts, setFactoryTotalContracts] = useState('0');
   const [factoryToken, setFactoryToken] = useState('');
   const [factoryStatus, setFactoryStatus] = useState('Chưa kết nối contract');
-  const [role, setRole] = useState('renter'); // Mặc định ban đầu là 'renter'
+
+  // THAY ĐỔI LỚN: Sử dụng activeTab thay cho role để quản lý phân luồng Menu
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('trustrent.activeTab') || 'my-rentals';
+  });
+
+  // Hàm xử lý đổi Tab và lưu trạng thái vào localStorage
+  const handleTabChange = (tabName) => {
+    setActiveTab(tabName);
+    localStorage.setItem('trustrent.activeTab', tabName);
+  };
 
   const persistWalletState = (address, balance) => {
     if (address) {
@@ -115,8 +125,6 @@ function App() {
       }
 
       await updateWalletData(provider, accounts[0]);
-
-      // Sau khi lấy được ví, app tạo contract instance để đọc dữ liệu của RentalFactory.
       await syncFactoryData(provider);
     } catch (error) {
       setWalletError(error instanceof Error ? error.message : 'Không thể kết nối ví.');
@@ -168,19 +176,21 @@ function App() {
     <BrowserRouter>
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
         <div>
+          {/* ĐỒNG BỘ: Truyền cả currentTab và onChangeTab để Navbar thực hiện ẩn/hiện menu động */}
           <Navbar
             onConnectWallet={connectWallet}
             walletAddress={walletAddress}
             walletBalance={walletBalance}
             isConnecting={isConnecting}
-            currentRole={role}
-            onChangeRole={setRole}
+            currentTab={activeTab}
+            onChangeTab={handleTabChange}
           />
           <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 text-center mt-10">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/product/:id" element={<ProductDetail />} />
-              <Route path="/dashboard" element={<Dashboard currentRole={role} />} />
+              {/* ĐỒNG BỘ: Giữ nguyên prop truyền xuống Dashboard */}
+              <Route path="/dashboard" element={<Dashboard currentTab={activeTab} />} />
             </Routes>
           </main>
         </div>

@@ -1,85 +1,100 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 
-function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, currentRole = 'renter', onChangeRole }) {
+function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, currentTab, onChangeTab }) {
   const hasWalletData = Boolean(walletAddress);
   const navigate = useNavigate();
-  const [isOpen, setIsOpen] = useState(false);
+  const location = useLocation();
+
+  // Hàm xử lý khi bấm đổi sang quyền Chủ máy
+  const handleGoToLessor = () => {
+    onChangeTab('lessor');
+    navigate('/dashboard');
+  };
+
+  // Hàm xử lý khi từ Chủ máy đổi quay lại quyền Khách hàng
+  const handleGoToRenter = () => {
+    onChangeTab('my-rentals');
+    navigate('/'); // Đưa người dùng về Trang chủ 
+  };
 
   return (
     <nav className="flex justify-between items-center p-4 bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-50">
-      <Link to="/" 
-  className="font-bold text-xl flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity select-none">
-        <span>🛡️</span> TrustRent
-      </Link>
+      
+      {/* KHỐI TRÁI: LOGO & MENU THEO NGỮ CẢNH */}
+      <div className="flex items-center gap-8">
+        {/* LOGO TRUSTRENT: Lối về xem các máy sẵn sàng cho thuê duy nhất */}
+        <Link 
+          to="/" 
+          className="font-bold text-xl flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity select-none"
+        >
+          <span>🛡️</span> TrustRent
+        </Link>
 
+        {/* ĐIỀU KIỆN 1: Nếu KHÔNG PHẢI là tab Chủ máy (Tức là đang làm Khách hàng) */}
+        {currentTab !== 'lessor' ? (
+          <div className="hidden md:flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850">
+            <button
+              type="button"
+              onClick={() => { onChangeTab('my-rentals'); navigate('/dashboard'); }}
+              className={`text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer transition-all ${
+                location.pathname === '/dashboard' && currentTab === 'my-rentals'
+                  ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' 
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              📦 Máy đã thuê
+            </button>
+          </div>
+        ) : (
+          /* ĐIỀU KIỆN 2: Nếu ĐANG LÀM CHỦ MÁY (lessor) -> Ẩn toàn bộ link liên quan đến đi thuê */
+          <div className="hidden md:flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850">
+            <span className="text-xs font-bold text-emerald-400 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg select-none flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Không gian Chủ máy
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* KHỐI PHẢI: NÚT ĐỔI QUYỀN VÀ THÔNG TIN VÍ MULTI-CHAIN */}
       <div className="flex items-center gap-4">
         
-        {/* DROPDOWN CHUYỂN ĐỔI CHẾ ĐỘ CHỦ MÁY / KHÁCH THUÊ */}
-        <div className="relative">
-          <button 
+        {/* NÚT THAY ĐỔI QUYỀN HẠN LINH HOẠT THEO DIỆN QUẢN LÝ */}
+        {currentTab !== 'lessor' ? (
+          <button
             type="button"
-            onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-1.5 text-xs font-semibold bg-slate-800 border border-slate-700 text-slate-200 px-3 py-2 rounded-xl hover:bg-slate-750 transition-colors shadow-sm cursor-pointer"
+            onClick={handleGoToLessor}
+            className="text-xs font-bold text-slate-300 hover:text-emerald-400 bg-slate-950 border border-slate-850 hover:border-emerald-500/30 px-3 py-2 rounded-xl cursor-pointer transition-all shadow-sm"
           >
-            Chế độ: {currentRole === 'renter' ? 'Khách hàng' : 'Chủ máy'}
-            <span className="text-[10px] text-slate-400">▼</span>
+            ⚙️ Kênh Chủ Máy
           </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleGoToRenter}
+            className="text-xs font-bold text-slate-300 hover:text-blue-400 bg-slate-950 border border-slate-850 hover:border-blue-500/30 px-3 py-2 rounded-xl cursor-pointer transition-all shadow-sm"
+          >
+            🛒 Đổi sang quyền Khách hàng
+          </button>
+        )}
 
-          {isOpen && (
-            <>
-              {/* Lớp bọc phủ màn hình (Backdrop) để khi click ra ngoài Dropdown thì tự đóng */}
-              <div className="fixed inset-0 z-40 cursor-default" onClick={() => setIsOpen(false)}></div>
-              
-              <div className="absolute right-0 mt-2 w-44 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
-                
-                {/* Lựa chọn 1: Khách hàng */}
-                <button 
-                  type="button"
-                  onClick={() => { onChangeRole('renter'); setIsOpen(false); navigate('/dashboard'); }}
-                  className={`w-full text-left px-4 py-3 text-xs font-medium cursor-pointer transition-colors ${
-                    currentRole === 'renter' 
-                      ? 'text-blue-400 bg-blue-950/40 font-bold border-l-2 border-blue-500' 
-                      : 'text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  Khách hàng (Renter)
-                </button>
-                
-                {/* Lựa chọn 2: Chủ máy */}
-                <button 
-                  type="button"
-                  onClick={() => { onChangeRole('lessor'); setIsOpen(false); navigate('/dashboard'); }}
-                  className={`w-full text-left px-4 py-3 text-xs font-medium cursor-pointer transition-colors ${
-                    currentRole === 'lessor' 
-                      ? 'text-emerald-400 bg-emerald-950/40 font-bold border-l-2 border-emerald-500' 
-                      : 'text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  Chủ máy (Lessor)
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-        
-        {/* Nếu đã có ví, hiển thị nhanh địa chỉ và số dư */}
+        {/* Thông tin ví MetaMask */}
         {hasWalletData && (
           <div className="hidden sm:flex flex-col items-end text-right text-xs text-slate-300">
             <span className="font-medium text-slate-100">
               {walletAddress.length > 10 ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : walletAddress}
             </span>
-            <span>{walletBalance} ETH</span>
+            <span className="text-slate-400">{walletBalance} ETH</span>
           </div>
         )}
 
-        {/* Nút bấm tự động đổi chữ tùy trạng thái kết nối */}
         <button
           type="button"
           onClick={onConnectWallet}
           disabled={isConnecting}
-          className="bg-blue-600 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 text-white font-medium px-4 py-2 rounded-xl transition-colors cursor-pointer text-sm"
+          className="bg-blue-600 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 text-white font-medium px-4 py-2 rounded-xl transition-colors cursor-pointer text-sm shadow-md"
         >
           {isConnecting ? 'Connecting...' : hasWalletData ? 'Wallet Connected' : 'Connect Wallet'}
         </button>
