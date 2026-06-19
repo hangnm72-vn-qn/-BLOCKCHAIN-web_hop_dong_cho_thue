@@ -4,11 +4,15 @@ const cors = require('cors');
 const multer = require('multer');
 require('dotenv').config();
 
+// Import hàm tìm kiếm từ file Product.js
+const { searchProducts } = require('./Product'); 
+
 const app = express();
 
 // Cơ sở dữ liệu mảng tạm thời dùng để lưu tài khoản giả lập
 const usersDb = []; 
 
+// Cấu hình Middleware (Bắt buộc phải đặt TRÊN các Route API)
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -17,15 +21,13 @@ app.use(express.urlencoded({ extended: true }));
 const upload = multer({ storage: multer.memoryStorage() });
 
 // 2. Import Model Sản phẩm (Thiết bị/Máy chủ) chuẩn
-const Product = require('./Product');
+const { Product } = require('./Product');
 
 // 3. Tự động kết nối Database và bơm dữ liệu Máy Chủ cấu hình mẫu
 async function connectDatabase() {
   try {
     console.log("⏳ Đang kết nối tới Cơ sở dữ liệu đám mây MongoDB Atlas...");
-    await mongoose.connect(process.env.MONGO_URI, { family: 4 });
-    console.log("🎉 Đã kết nối Cơ sở dữ liệu đám mây thành công! (Bao đậu đồ án)");
-
+await mongoose.connect("mongodb://127.0.0.1:27017/blockchain_rental");
     const count = await Product.countDocuments();
     if (count === 0) {
       console.log("🖥️ Chưa có cấu hình máy chủ, tiến hành nạp 3 cụm Cloud Server mẫu...");
@@ -90,6 +92,9 @@ connectDatabase();
 // ==========================================
 // 🚀 KHU VỰC CÁC ROUTE ĐƯỜNG DẪN TĨNH 🚀
 // ==========================================
+
+// ⭐ ĐÃ ĐỔI VỊ TRÍ VÀ FIX ĐỒNG BỘ: Định nghĩa API Tìm kiếm gói máy chủ
+app.get('/api/products/search', searchProducts);
 
 // [API] Lấy danh sách tất cả các gói máy chủ đang cho thuê
 app.get('/api/products', async (req, res) => {
@@ -247,7 +252,7 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
-// [API] BƯỚC 3: TỰ ĐỘNG KHỞI TẠO MÁY CHỦ VÀ CẤP USER/PASS (ĐÃ FIX TRIỆT ĐỂ LỖI CÚ PHÁP)
+// [API] BƯỚC 3: TỰ ĐỘNG KHỞI TẠO MÁY CHỦ VÀ CẤP USER/PASS
 app.post('/api/products/:id/provision', upload.none(), async (req, res) => {
   try {
     const { id } = req.params;
@@ -341,7 +346,7 @@ app.get('/', (req, res) => {
   res.send("🚀Server Backend của dự án Thuê Máy Chủ Phi Tập Trung (Cloud Server Rental) đang hoạt động mượt mà!");
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 9999;
 app.listen(PORT, () => {
   console.log(`🤖 Hệ thống Backend đang chạy tại: http://localhost:${PORT}`);
 });
