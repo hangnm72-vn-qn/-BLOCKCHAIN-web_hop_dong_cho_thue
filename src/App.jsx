@@ -3,7 +3,7 @@ import { BrowserProvider, formatEther } from 'ethers';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
-import ProductDetail from './pages/ProductDetail';
+import ProductDetail from "./pages/ProductDetailWeb3Synced";
 import Dashboard from './pages/Dashboard';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { createRentalFactoryContract, SEPOLIA_CHAIN_ID } from './contracts/rentalFactoryConfig';

@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Link } from 'react-router-dom';
 
 function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, currentTab, onChangeTab }) {
   const hasWalletData = Boolean(walletAddress);
@@ -19,18 +18,36 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
     navigate('/'); // Đưa người dùng về Trang chủ 
   };
 
+  // CẬP NHẬT: Hàm kiểm soát hành vi bấm vào Logo TrustRent theo ngữ cảnh quyền hạn
+  const handleLogoClick = () => {
+    if (currentTab === 'lessor') {
+      // Nếu đang ở Kênh Chủ máy: Bắt buộc phải có bước xác nhận trước
+      const isConfirm = window.confirm(
+        "Bạn đang ở Không gian Chủ máy. Bạn có chắc chắn muốn rời khỏi trình quản trị để quay về Trang chủ dành cho Khách hàng?"
+      );
+      if (isConfirm) {
+        onChangeTab('my-rentals'); // Ép trạng thái tab quay lại quyền khách hàng
+        navigate('/');             // Điều hướng về trang chủ Chợ sản phẩm
+      }
+    } else {
+      // Nếu đang là Khách hàng: Thoải mái chuyển về trang chủ xem sản phẩm
+      navigate('/');
+    }
+  };
+
   return (
     <nav className="flex justify-between items-center p-4 bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-50">
       
       {/* KHỐI TRÁI: LOGO & MENU THEO NGỮ CẢNH */}
       <div className="flex items-center gap-8">
-        {/* LOGO TRUSTRENT: Lối về xem các máy sẵn sàng cho thuê duy nhất */}
-        <Link 
-          to="/" 
+        
+        {/* CẬP NHẬT: Đổi từ thẻ Link sang div để xử lý logic confirm chặn luồng thoát của Chủ máy */}
+        <div 
+          onClick={handleLogoClick}
           className="font-bold text-xl flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity select-none"
         >
           <span>🛡️</span> TrustRent
-        </Link>
+        </div>
 
         {/* ĐIỀU KIỆN 1: Nếu KHÔNG PHẢI là tab Chủ máy (Tức là đang làm Khách hàng) */}
         {currentTab !== 'lessor' ? (

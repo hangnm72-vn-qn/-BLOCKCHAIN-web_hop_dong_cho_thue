@@ -13,7 +13,7 @@ function Dashboard({ currentTab }) { // Đổi từ currentRole sang currentTab 
     port: '22',
     username: 'trustrent_user',
     password: 'MockPassword2026@',
-    status: 'None' // Mặc định là 'None' (Chưa thuê). Các trạng thái: None, Testing, Active, Dispute
+    status: 'None' // Các trạng thái: None, Testing, Active, Dispute
   });
 
   // Giả lập số giây còn lại từ API (Ví dụ: 9 phút 50 giây = 590 giây)
@@ -394,10 +394,26 @@ function Dashboard({ currentTab }) { // Đổi từ currentRole sang currentTab 
                 </>
               ) : serverData.status === 'None' ? (
                 <>
-                  <h3 className="text-sm font-bold text-slate-400 border-b border-slate-900 pb-2 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-slate-600"></span>
-                    Nhật ký vận hành máy chủ
-                  </h3>
+                  {/* CẬP NHẬT: THÊM NÚT "GỠ MÁY CHỦ" TRỰC QUAN KHI TRẠNG THÁI TRỐNG (NONE) */}
+                  <div className="border-b border-slate-900 pb-2 flex justify-between items-center">
+                    <h3 className="text-sm font-bold text-slate-400 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                      Đang treo tìm khách
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const isConfirm = window.confirm("Bạn có chắc chắn muốn gỡ gói máy chủ này xuống khỏi danh sách cho thuê không?\nHành động này sẽ hủy trạng thái hiển thị trên Chợ TrustRent.");
+                        if (isConfirm) {
+                          alert("Đang kích hoạt MetaMask để thực hiện hàm unlistPackage() trên Smart Contract của Hạnh...");
+                        }
+                      }}
+                      className="text-[10px] font-bold text-red-400 hover:text-white border border-red-500/30 hover:bg-red-600/80 px-2 py-1 rounded-lg cursor-pointer transition-all shadow-sm"
+                    >
+                      🛑 Gỡ máy chủ
+                    </button>
+                  </div>
+                  
                   <div className="py-8 flex flex-col items-center justify-center text-center gap-3 bg-slate-900/30 border border-dashed border-slate-900 rounded-lg my-2">
                     <div className="text-2xl">⏳</div>
                     <div>

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { getProductById, updateProductStatus, provisionProduct } from "../Service - Ân/productService"
+// ĐÃ SỬA: Import thêm hàm terminateProduct từ Service của Ân để dứt điểm xoá ví thuê
+import { getProductById, updateProductStatus, provisionProduct, terminateProduct } from "../Service - Ân/productService"
 import { useParams, useNavigate } from 'react-router-dom';
 import { BrowserProvider, Contract, parseUnits } from 'ethers';
 import { createRentalFactoryContract, createSingleContract, SEPOLIA_CHAIN_ID } from '../contracts/rentalFactoryConfig';
@@ -12,7 +13,6 @@ function ProductDetail() {
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // THÊM STATE QUẢN LÝ SỐ GIỜ THUÊ (Mặc định ban đầu là 1 giờ)
   const [rentHours, setRentHours] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [contractId, setContractId] = useState(null);
@@ -53,13 +53,11 @@ function ProductDetail() {
             Địa chỉ ví chủ máy (Lessor): <span className="text-slate-400 font-mono">{product.ownerAddress}</span>
           </p>
 
-          {/* Khối mô tả thông số máy chủ*/}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">🔍 Chi tiết cấu hình & Tài nguyên:</h4>
             <p className="text-sm text-emerald-400 font-medium">{product.description}</p>
           </div>
 
-          {/* BẢNG ĐIỀU KHOẢN VẬN HÀNH CỦA SMART CONTRACT ĐÃ ĐƯỢC THIẾT LẠI */}
           <div className="border border-slate-800 bg-slate-900/60 rounded-2xl p-6 backdrop-blur-sm">
             <h4 className="text-sm font-bold text-slate-200 flex items-center gap-2 mb-4 uppercase tracking-wider">
               <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-pulse"></span>
@@ -67,7 +65,6 @@ function ProductDetail() {
             </h4>
   
             <div className="space-y-4">
-              {/* Dòng 1: 10 phút đầu */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800/60">
                 <div className="flex items-center gap-2">
                   <span className="text-base">⏰</span>
@@ -78,7 +75,6 @@ function ProductDetail() {
                 </span>
               </div>
 
-              {/* Dòng 2: Sập nguồn ngầm */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800/60">
                 <div className="flex items-center gap-2">
                   <span className="text-base">❌</span>
@@ -89,7 +85,6 @@ function ProductDetail() {
                 </span>
               </div>
 
-              {/* Dòng 3: Quá thời gian */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="text-base">🔥</span>
@@ -103,10 +98,8 @@ function ProductDetail() {
           </div>
         </div>
 
-        {/* Khung tính toán đặt cọc & Khối Nút bấm hành động */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5 shadow-xl">
           <div className="grid grid-cols-2 gap-4">
-            
             <Input
               label="Số giờ cần thuê (Tối thiểu 1 giờ)"
               type="number"
@@ -128,7 +121,6 @@ function ProductDetail() {
             </div>
           </div>
 
-          {/* HÀNG NÚT BẤM CHÍNH */}
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <Button variant="secondary" className="flex-1" onClick={() => navigate('/')}>
               Quay Lại Trang Chủ
@@ -138,7 +130,6 @@ function ProductDetail() {
                 variant="primary"
                 className="flex-[2] font-bold text-base bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20"
                 onClick={async () => {
-                  // Hàm thuê máy: tính tổng token và gọi contract rentServer
                   try {
                     setIsProcessing(true);
                     setMessage('');
@@ -158,7 +149,6 @@ function ProductDetail() {
                     const signer = await provider.getSigner();
                     const factory = createRentalFactoryContract(signer);
 
-                    // Lấy địa chỉ token và decimals
                     const tokenAddress = await factory.token();
                     const tokenContract = new Contract(
                       tokenAddress,
@@ -176,7 +166,6 @@ function ProductDetail() {
                       decimals = 18;
                     }
 
-                    // Tính tổng tiền (pricePerHour * hours)
                     const totalPrice = Number(product.pricePerHour) * Number(rentHours);
                     if (totalPrice <= 0) {
                       setMessage('Số giờ thuê không hợp lệ.');
@@ -185,10 +174,8 @@ function ProductDetail() {
 
                     const totalAmount = parseUnits(String(totalPrice), decimals);
 
-                    // Tìm package contract address tương ứng (nếu backend chưa lưu contractAddress)
                     let packageAddress = product.contractAddress || '';
                     if (!packageAddress) {
-                      // Tìm theo owner và so sánh giá
                       const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
                       const perHourOnChain = parseUnits(String(product.pricePerHour), decimals);
                       for (let i = 0; i < packageIds.length; i++) {
@@ -199,9 +186,7 @@ function ProductDetail() {
                             packageAddress = await factory.getPackageAddress(pkgId);
                             break;
                           }
-                        } catch (e) {
-                          // ignore
-                        }
+                        } catch (e) {}
                       }
                     }
 
@@ -212,35 +197,27 @@ function ProductDetail() {
 
                     const single = createSingleContract(packageAddress, signer);
 
-                    // Approve token transfer to the single contract (giam tiền)
                     const approveTx = await tokenContract.approve(packageAddress, totalAmount);
                     setMessage('Đang phê duyệt token trên MetaMask...');
                     await approveTx.wait();
 
-                    // Gọi rentServer
                     const rentTx = await single.rentServer(Number(rentHours));
                     setMessage('Gửi lệnh thuê, chờ xử lý trên chain...');
-                    const receipt = await rentTx.wait();
+                    await rentTx.wait();
 
-                    // Lấy contractId mới
                     let nextId = await single.nextContractId();
                     const newContractId = Number(nextId.toString()) - 1;
                     setContractId(newContractId);
 
-                    // Lấy địa chỉ ví người thuê từ signer
                     const renterAddress = await signer.getAddress();
 
-                    // Gọi backend provision để kích hoạt tài nguyên và lấy credentials
                     try {
                       const prov = await provisionProduct(product._id, renterAddress);
                       if (prov && prov.data && prov.data.credentials) {
                         setCredentials(prov.data.credentials);
                       }
-                    } catch (e) {
-                      // không bắt buộc thành công
-                    }
+                    } catch (e) {}
 
-                    // Đồng bộ trạng thái lên UI
                     setMessage('Thuê thành công. ContractId: ' + newContractId);
                   } catch (err) {
                     console.error(err);
@@ -266,7 +243,6 @@ function ProductDetail() {
             <p className={`text-xs ${message.includes('thành công') ? 'text-emerald-400' : 'text-rose-400'}`}>{message}</p>
           )}
 
-          {/* Hiển thị credentials khi backend trả về sau provision */}
           {credentials && (
             <div className="mt-3 bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm">
               <h4 className="text-xs font-bold text-slate-300 mb-2">Thông tin bàn giao VPS</h4>
@@ -279,12 +255,15 @@ function ProductDetail() {
             </div>
           )}
 
-          {/* Nếu đã có contractId trên chain, hiển thị các nút xử lý 10 phút */}
+          {/* ==========================================
+              🔥 KHU VỰC ĐÃ VÁ LỖI PHÂN NHÁNH ĐỒNG BỘ ĐỒ ÁN 
+             ========================================== */}
           {contractId && (
             <div className="mt-3 flex gap-2">
+              {/* NHÁNH 2: Khách dùng mượt mà bấm OK -> Kích hoạt thuê chính thức */}
               <Button
                 variant="secondary"
-                className="flex-1"
+                className="flex-1 bg-emerald-950/40 text-emerald-400 border border-emerald-900/60 hover:bg-emerald-900/40"
                 onClick={async () => {
                   try {
                     setIsProcessing(true);
@@ -292,7 +271,7 @@ function ProductDetail() {
                     const provider = new BrowserProvider(window.ethereum);
                     const signer = await provider.getSigner();
                     const factory = createRentalFactoryContract(signer);
-                    // Lấy packageAddress như trên
+                    
                     let packageAddress = product.contractAddress || '';
                     if (!packageAddress) {
                       const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
@@ -313,7 +292,8 @@ function ProductDetail() {
                     const tx = await single.confirmRental(contractId);
                     await tx.wait();
                     setMessage('Xác nhận OK đã được ghi nhận trên chain.');
-                    // Đồng bộ backend
+                    
+                    // CHUẨN HOÁ: Chuyển máy sang trạng thái Active chạy chính thức
                     try { await updateProductStatus(product._id, 'Active'); } catch (e) {}
                   } catch (e) {
                     console.error(e);
@@ -324,11 +304,11 @@ function ProductDetail() {
                 Xác nhận OK
               </Button>
 
+              {/* NHÁNH 1 (PHẦN A): Chấp nhận giảm giá khi có sự cố nhỏ */}
               <Button
                 variant="secondary"
                 className="flex-1"
                 onClick={async () => {
-                  // Khách chấp nhận giảm giá (ví dụ 20%)
                   try {
                     setIsProcessing(true);
                     setMessage('Gửi lệnh chấp nhận giảm giá...');
@@ -352,8 +332,10 @@ function ProductDetail() {
                     const single = createSingleContract(packageAddress, signer);
                     const tx = await single.acceptDiscount(contractId);
                     await tx.wait();
-                    setMessage('Đã chấp nhận giảm giá, giao dịch xử lý xong.');
-                    try { await updateProductStatus(product._id, 'Available'); } catch (e) {}
+                    setMessage('Đã chấp nhận giảm giá, máy hoạt động tiếp.');
+                    
+                    // ĐỒNG BỘ CHUẨN: Chuyển trạng thái máy sang chạy chính thức luôn
+                    try { await updateProductStatus(product._id, 'Active'); } catch (e) {}
                   } catch (e) {
                     console.error(e);
                     setMessage('Lỗi khi chấp nhận giảm giá: ' + (e?.message || ''));
@@ -363,11 +345,11 @@ function ProductDetail() {
                 Đồng ý giảm giá 20%
               </Button>
 
+              {/* NHÁNH 1 (PHẦN B) & NHÁNH 3: Khách không thuê nữa, hủy hoàn tiền / Giải phóng tài nguyên */}
               <Button
                 variant="secondary"
-                className="flex-1"
+                className="flex-1 bg-rose-950/40 text-rose-400 border border-rose-900/60 hover:bg-rose-900/40"
                 onClick={async () => {
-                  // Khách từ chối và yêu cầu hoàn tiền
                   try {
                     setIsProcessing(true);
                     setMessage('Gửi lệnh hoàn tiền (reject) lên chain...');
@@ -392,7 +374,15 @@ function ProductDetail() {
                     const tx = await single.rejectDiscount(contractId);
                     await tx.wait();
                     setMessage('Đã hủy & hoàn tiền 100% cho khách.');
-                    try { await updateProductStatus(product._id, 'Available'); } catch (e) {}
+                    
+                    // 🔥 ĐÃ VÁ LỖI: Sử dụng terminateProduct của Ân để xóa hẳn ví renterAddress khỏi DB
+                    try { 
+                      await terminateProduct(product._id); 
+                      // Refresh lại trang để cập nhật giao diện máy trống
+                      window.location.reload();
+                    } catch (e) {
+                      console.error("Lỗi đồng bộ giải phóng ví:", e);
+                    }
                   } catch (e) {
                     console.error(e);
                     setMessage('Lỗi khi huỷ & hoàn tiền: ' + (e?.message || ''));
