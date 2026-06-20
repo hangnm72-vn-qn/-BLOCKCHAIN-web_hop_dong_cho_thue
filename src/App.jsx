@@ -3,20 +3,107 @@ import { BrowserProvider, formatEther } from 'ethers';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
-import ProductDetail from './pages/ProductDetail';
+import ProductDetail from "./pages/ProductDetailWeb3Synced";
+import AddProduct from './pages/AddProduct';
+import Dashboard from './pages/Dashboard';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { createRentalFactoryContract, SEPOLIA_CHAIN_ID } from './contracts/rentalFactoryConfig';
 
 function App() {
   const [walletAddress, setWalletAddress] = useState('');
   const [walletBalance, setWalletBalance] = useState('0.0');
   const [isConnecting, setIsConnecting] = useState(false);
   const [walletError, setWalletError] = useState('');
+  const [factoryTotalContracts, setFactoryTotalContracts] = useState('0');
+  const [factoryToken, setFactoryToken] = useState('');
+  const [factoryStatus, setFactoryStatus] = useState('Chưa kết nối contract');
+
+  // THAY ĐỔI LỚN: Sử dụng activeTab thay cho role để quản lý phân luồng Menu
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('trustrent.activeTab') || 'my-rentals';
+  });
+
+  // Hàm xử lý đổi Tab và lưu trạng thái vào localStorage
+  const handleTabChange = (tabName) => {
+    setActiveTab(tabName);
+    localStorage.setItem('trustrent.activeTab', tabName);
+  };
+
+  const persistWalletState = (address, balance) => {
+    if (address) {
+      localStorage.setItem('trustrent.walletAddress', address);
+      localStorage.setItem('trustrent.walletBalance', balance);
+      return;
+    }
+
+    localStorage.removeItem('trustrent.walletAddress');
+    localStorage.removeItem('trustrent.walletBalance');
+  };
 
   // Lấy số dư ETH của một địa chỉ ví
   const updateWalletData = async (provider, address) => {
     const balance = await provider.getBalance(address);
+    const formattedBalance = Number(formatEther(balance)).toFixed(4);
     setWalletAddress(address);
-    setWalletBalance(Number(formatEther(balance)).toFixed(4));
+    setWalletBalance(formattedBalance);
+    persistWalletState(address, formattedBalance);
+  };
+
+  // Khởi tạo RentalFactory bằng ABI + address rồi đọc dữ liệu on-chain để xác nhận contract hoạt động.
+  const syncFactoryData = async (provider) => {
+    try {
+      const network = await provider.getNetwork();
+
+      if (network.chainId !== SEPOLIA_CHAIN_ID) {
+        setFactoryStatus('Hợp đồng chỉ hoạt động trên Sepolia');
+        setFactoryTotalContracts('0');
+        setFactoryToken('');
+        setWalletError('Vui lòng chuyển MetaMask sang mạng Sepolia để đọc Smart Contract.');
+        return;
+      }
+
+      const rentalFactoryContract = createRentalFactoryContract(provider);
+
+      const [totalContracts, tokenAddress] = await Promise.all([
+        rentalFactoryContract.getTotalPackages(),
+        rentalFactoryContract.token(),
+      ]);
+
+      setFactoryTotalContracts(totalContracts.toString());
+      setFactoryToken(tokenAddress);
+      setFactoryStatus('Đã kết nối RentalFactory trên Sepolia');
+      setWalletError('');
+    } catch (error) {
+      setFactoryStatus('Không đọc được dữ liệu contract');
+      setFactoryTotalContracts('0');
+      setFactoryToken('');
+      setWalletError(error instanceof Error ? error.message : 'Không thể đọc Smart Contract.');
+    }
+  };
+
+  const restoreWalletSession = async () => {
+    if (!window.ethereum) {
+      return;
+    }
+
+    const savedAddress = localStorage.getItem('trustrent.walletAddress');
+    const provider = new BrowserProvider(window.ethereum);
+    const accounts = await provider.send('eth_accounts', []);
+
+    if (!accounts.length) {
+      if (savedAddress) {
+        persistWalletState('', '0.0');
+      }
+      return;
+    }
+
+    const activeAccount = accounts[0];
+    if (savedAddress && savedAddress.toLowerCase() !== activeAccount.toLowerCase()) {
+      persistWalletState(activeAccount, localStorage.getItem('trustrent.walletBalance') || '0.0');
+    }
+
+    await updateWalletData(provider, activeAccount);
+    await syncFactoryData(provider);
   };
 
   // Kích hoạt MetaMask để xin quyền kết nối
@@ -39,6 +126,7 @@ function App() {
       }
 
       await updateWalletData(provider, accounts[0]);
+      await syncFactoryData(provider);
     } catch (error) {
       setWalletError(error instanceof Error ? error.message : 'Không thể kết nối ví.');
     } finally {
@@ -58,10 +146,14 @@ function App() {
       if (!accounts.length) {
         setWalletAddress('');
         setWalletBalance('0.0');
+        setFactoryTotalContracts('0');
+        setFactoryToken('');
+        setFactoryStatus('Chưa kết nối contract');
         return;
       }
 
       await updateWalletData(provider, accounts[0]);
+      await syncFactoryData(provider);
     };
 
     const handleChainChanged = () => {
@@ -70,6 +162,10 @@ function App() {
 
     window.ethereum.on('accountsChanged', handleAccountsChanged);
     window.ethereum.on('chainChanged', handleChainChanged);
+
+    restoreWalletSession().catch((error) => {
+      setWalletError(error instanceof Error ? error.message : 'Không thể khôi phục phiên ví.');
+    });
 
     return () => {
       window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
@@ -81,16 +177,22 @@ function App() {
     <BrowserRouter>
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
         <div>
+          {/* ĐỒNG BỘ: Truyền cả currentTab và onChangeTab để Navbar thực hiện ẩn/hiện menu động */}
           <Navbar
             onConnectWallet={connectWallet}
             walletAddress={walletAddress}
             walletBalance={walletBalance}
             isConnecting={isConnecting}
+            currentTab={activeTab}
+            onChangeTab={handleTabChange}
           />
           <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 text-center mt-10">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/product/:id" element={<ProductDetail />} />
+              <Route path="/add-product" element={<AddProduct />} />
+              {/* ĐỒNG BỘ: Giữ nguyên prop truyền xuống Dashboard */}
+              <Route path="/dashboard" element={<Dashboard currentTab={activeTab} />} />
             </Routes>
           </main>
         </div>

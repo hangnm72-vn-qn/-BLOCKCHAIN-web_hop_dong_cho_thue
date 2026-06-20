@@ -13,17 +13,23 @@ export const getProductById = async (id) => {
 }
 
 // Đăng gói máy chủ mới
-export const createProduct = async (title, description, pricePerDay, ownerAddress, condition, imageFile) => {
+export const createProduct = async (title, description, pricePerHour, ownerAddress, condition, imageFile) => {
     const formData = new FormData()
     formData.append('title', title)
     formData.append('description', description)
-    formData.append('pricePerDay', pricePerDay)
+    formData.append('pricePerHour', pricePerHour)
     formData.append('depositAmount', 0) // Mặc định 0 theo yêu cầu mới
     formData.append('ownerAddress', ownerAddress)
     formData.append('condition', condition)
     formData.append('image', imageFile)
 
     const response = await api.post('/products', formData)
+    return response.data
+}
+
+// Kích hoạt tài nguyên máy sau khi on-chain rentServer thành công
+export const provisionProduct = async (productId, renterAddress) => {
+    const response = await api.post(`/products/${productId}/provision`, { renterAddress })
     return response.data
 }
 
@@ -36,5 +42,10 @@ export const updateProductStatus = async (id, status) => {
 // Cập nhật trạng thái hàng loạt (nhiều máy chủ cùng lúc)
 export const bulkUpdateStatus = async (ids, status) => {
     const response = await api.put('/products/bulk-status', { ids, status })
+    return response.data
+}
+// Thêm hàm này vào cuối file productService.js để vá lỗi export
+export const terminateProduct = async (id) => {
+    const response = await api.post(`/products/${id}/terminate`)
     return response.data
 }

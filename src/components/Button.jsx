@@ -1,4 +1,3 @@
-import React from 'react';
 function Button({ children, onClick, type = 'button', variant = 'primary', className = '' }) {
   const baseStyle = "font-medium px-5 py-2.5 rounded-xl transition-all duration-200 cursor-pointer text-sm text-center tracking-wide focus:outline-none";
   

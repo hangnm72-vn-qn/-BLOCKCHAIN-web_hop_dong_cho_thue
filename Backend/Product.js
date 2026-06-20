@@ -1,41 +1,88 @@
 const mongoose = require('mongoose');
 
-// Định nghĩa cấu trúc lưu trữ của một sản phẩm cho thuê
+// 1. Định nghĩa cấu trúc lưu trữ của một gói dịch vụ Máy chủ
 const ProductSchema = new mongoose.Schema({
   title: { 
     type: String, 
     required: true 
-  }, // Tên món đồ (Ví dụ: Váy dạ hội sequin, Máy ảnh Sony Alpha A7)
-  
+  }, 
   description: { 
     type: String 
-  }, // Mô tả chi tiết về tình trạng, kích cỡ, màu sắc món đồ
-  
-  pricePerDay: { 
+  }, 
+  pricePerHour: { 
     type: Number, 
     required: true 
-  }, // Giá thuê tính theo ngày
-  
+  }, 
   depositAmount: { 
     type: Number, 
-    required: true 
-  }, // Số tiền đặt cọc bắt buộc (để khóa trong Smart Contract)
-  
+    required: true,
+    default: 0
+  }, 
   images: [{ 
     type: String 
-  }], // Mảng chứa các đường link ảnh sau khi up lên IPFS Pinata
-  
+  }], 
   ownerAddress: { 
     type: String, 
     required: true 
-  }, // Địa chỉ ví MetaMask (0x...) của người đăng cho thuê
-  
+  }, 
+  renterAddress: { 
+    type: String, 
+    default: "" 
+  }, 
   status: { 
     type: String, 
     default: 'Available' 
-  } // Trạng thái món đồ: 'Available' (Sẵn sàng cho thuê) hoặc 'Rented' (Đang được thuê)
+  }, 
+  condition: {
+    type: String,
+    default: "Uptime SLA 99.99% - Băng thông 1Gbps không giới hạn - Hỗ trợ kỹ thuật phần cứng 24/7"
+  },
+  penaltyTerms: {
+    lateFee: { 
+      type: String, 
+      default: "+0.005 ETH / giờ quá hạn thanh toán" 
+    }, 
+    damageFee: { 
+      type: String, 
+      default: "0 (Hỗ trợ thay thế và bảo trì phần cứng miễn phí)" 
+    }, 
+    lossFee: { 
+      type: String, 
+      default: "Hủy kích hoạt môi trường ảo hóa và thu hồi toàn bộ tài nguyên sau 24 giờ quá hạn" 
+    } 
+  }
 }, {
-  timestamps: true // Tự động lưu thêm mốc thời gian tạo và cập nhật món đồ
+  timestamps: true 
 });
 
-module.exports = mongoose.model('Product', ProductSchema);
+// 2. ⭐ ĐÃ SỬA: Tạo biến Product từ Schema để các hàm bên dưới gọi trúng đối tượng truy vấn Database
+const Product = mongoose.model('Product', ProductSchema);
+
+// 3. Hàm xử lý API Tìm kiếm gói máy chủ
+const searchProducts = async (req, res) => {
+  try {
+    const { keyword } = req.query;
+    let query = {};
+
+    if (keyword) {
+      query = {
+        $or: [
+          { title: { $regex: keyword, $options: 'i' } },
+          { description: { $regex: keyword, $options: 'i' } }
+        ]
+      };
+    }
+
+    const products = await Product.find(query); 
+    // ⭐ ĐÃ SỬA: Bọc data vào object giống cấu trúc API gốc của hệ thống
+    res.status(200).json({ success: true, count: products.length, data: products });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Lỗi tìm kiếm", error: error.message });
+  }
+};
+
+// 4. ⭐ ĐÃ SỬA: Gộp chung toàn bộ đối tượng cần xuất bản ra ngoài thành một cụm duy nhất
+module.exports = {
+  Product,
+  searchProducts
+};

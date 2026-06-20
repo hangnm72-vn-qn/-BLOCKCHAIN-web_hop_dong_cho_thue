@@ -1,4 +1,3 @@
-import React from 'react';
 function Input({ label, type = 'text', placeholder, value, onChange, name, min, max, className = '' }) {
   return (
     <div className={`w-full flex flex-col gap-1.5 text-left ${className}`}>
