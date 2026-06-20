@@ -1,13 +1,9 @@
 import api from './api'
 
-export const returnItem = async (returnImageFile) => {
-    const formData = new FormData()
-    formData.append('returnImage', returnImageFile)
-
-    const response = await api.post('/rentals/return', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    return response.data.photoHash
+// Lấy danh sách máy chủ mà 1 địa chỉ ví đang thuê
+export const getRentedByAddress = async (renterAddress) => {
+    const response = await api.get(`/products/rented-by/${renterAddress}`)
+    return response.data
 }
 
 export const updateRentalStatus = async (productId) => {
