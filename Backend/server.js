@@ -24,10 +24,19 @@ const upload = multer({ storage: multer.memoryStorage() });
 const { Product } = require('./Product');
 
 // 3. Tự động kết nối Database và bơm dữ liệu Máy Chủ cấu hình mẫu
+// Thêm thư viện dns của Node.js vào ngay trong hàm (hoặc đầu file) để ép dùng DNS Google
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']); // Ép hệ thống dùng DNS của Google, bỏ qua DNS nhà mạng bị chặn
+
 async function connectDatabase() {
   try {
     console.log("⏳ Đang kết nối tới Cơ sở dữ liệu đám mây MongoDB Atlas...");
-    await mongoose.connect("mongodb://127.0.0.1:27017/blockchain_rental");
+    
+    // Sử dụng chuỗi kết nối chuẩn SRV ngắn gọn của cụm mới Kieuhttk230506
+    const atlasUri = "mongodb+srv://kieuhuynh230506_db_user:Kieu23052006@kieuhttk230506.edgottj.mongodb.net/blockchain_rental?retryWrites=true&w=majority&appName=Kieuhttk230506";
+    
+    await mongoose.connect(atlasUri);
+    
     const count = await Product.countDocuments();
     if (count === 0) {
       console.log("🖥️ Chưa có cấu hình máy chủ, tiến hành nạp 3 cụm Cloud Server mẫu...");
