@@ -454,7 +454,11 @@
 //   );
 // }
 
+<<<<<<< Updated upstream
 // export default Dashboard; 
+=======
+// export default Dashboard;
+>>>>>>> Stashed changes
 import React, { useEffect, useState } from 'react';
 import { BrowserProvider, Contract, parseUnits } from 'ethers';
 import { useNavigate } from 'react-router-dom';
