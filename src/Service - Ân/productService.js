@@ -46,6 +46,6 @@ export const bulkUpdateStatus = async (ids, status) => {
 }
 // Thêm hàm này vào cuối file productService.js để vá lỗi export
 export const terminateProduct = async (id) => {
-    console.log("Mock terminate product for ID:", id);
-    return { success: true };
-};
+    const response = await api.post(`/products/${id}/terminate`)
+    return response.data
+}

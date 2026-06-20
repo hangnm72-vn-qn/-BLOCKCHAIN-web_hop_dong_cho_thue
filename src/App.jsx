@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import ProductDetail from "./pages/ProductDetailWeb3Synced";
+import AddProduct from './pages/AddProduct';
 import Dashboard from './pages/Dashboard';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { createRentalFactoryContract, SEPOLIA_CHAIN_ID } from './contracts/rentalFactoryConfig';
@@ -189,6 +190,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/product/:id" element={<ProductDetail />} />
+              <Route path="/add-product" element={<AddProduct />} />
               {/* ĐỒNG BỘ: Giữ nguyên prop truyền xuống Dashboard */}
               <Route path="/dashboard" element={<Dashboard currentTab={activeTab} />} />
             </Routes>
