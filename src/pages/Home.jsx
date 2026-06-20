@@ -27,16 +27,15 @@ function Home() {
         />
         <div className="flex gap-2 w-full md:w-auto">
           <Button variant="secondary" className="w-full md:w-auto">Tất cả</Button>
-          <Button variant="secondary" className="w-full md:w-auto text-slate-400">Đầm Dạ Hội</Button>
-          <Button variant="secondary" className="w-full md:w-auto text-slate-400">Váy Cưới</Button>
         </div>
       </div>
 
       {/* Danh sách sản phẩm */}
       <div>
         <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-          ✨ Bộ Sưu Tập Trang Phục Thiết Kế Cao Cấp ✨
+          Các gói máy chủ VPS sẵn có
         </h3>
+
 
         {loading ? (
           <p className="text-slate-400 text-center">Đang tải sản phẩm...</p>
