@@ -23,7 +23,7 @@ function ProductDetail() {
     const fetchProduct = async () => {
       const data = await getProductById(id)
       setProduct(data)
-      setLoading(false)
+      loading && setLoading(false)
     }
     fetchProduct()
   }, [id])
@@ -211,12 +211,15 @@ function ProductDetail() {
 
                     const renterAddress = await signer.getAddress();
 
+                    // ✅ ĐÃ SỬA: Đọc phẳng trực tiếp dữ liệu từ Backend trả về
                     try {
                       const prov = await provisionProduct(product._id, renterAddress);
-                      if (prov && prov.data && prov.data.credentials) {
-                        setCredentials(prov.data.credentials);
+                      if (prov && prov.success) {
+                        setCredentials(prov);
                       }
-                    } catch (e) {}
+                    } catch (e) {
+                      console.error("Lỗi gọi API Provision:", e);
+                    }
 
                     setMessage('Thuê thành công. ContractId: ' + newContractId);
                   } catch (err) {
@@ -243,14 +246,13 @@ function ProductDetail() {
             <p className={`text-xs ${message.includes('thành công') ? 'text-emerald-400' : 'text-rose-400'}`}>{message}</p>
           )}
 
+          {/* ✅ ĐÃ SỬA: Hiển thị giao diện IP phẳng theo đúng yêu cầu mới của Ân */}
           {credentials && (
             <div className="mt-3 bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm">
               <h4 className="text-xs font-bold text-slate-300 mb-2">Thông tin bàn giao VPS</h4>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>IP: <span className="font-mono">{credentials.ip}</span></div>
-                <div>Port: <span className="font-mono">{credentials.port}</span></div>
-                <div>Username: <span className="font-mono">{credentials.username}</span></div>
-                <div>Password: <span className="font-mono">{credentials.password}</span></div>
+              <div className="text-xs space-y-1">
+                <div className="text-emerald-400 font-medium">✨ {credentials.message}</div>
+                <div className="mt-2">Địa chỉ IP kết nối: <span className="font-mono text-blue-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">{credentials.ipAddress}</span></div>
               </div>
             </div>
           )}

@@ -27,7 +27,7 @@ const { Product } = require('./Product');
 async function connectDatabase() {
   try {
     console.log("⏳ Đang kết nối tới Cơ sở dữ liệu đám mây MongoDB Atlas...");
-await mongoose.connect("mongodb://127.0.0.1:27017/blockchain_rental");
+    await mongoose.connect("mongodb://127.0.0.1:27017/blockchain_rental");
     const count = await Product.countDocuments();
     if (count === 0) {
       console.log("🖥️ Chưa có cấu hình máy chủ, tiến hành nạp 3 cụm Cloud Server mẫu...");
@@ -171,7 +171,7 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
   }
 });
 
-// [API SỬA ĐỔI] LỌC MÁY THEO VÍ NGƯỜI THUÊ - FIX LỖI ĐỒNG HỒ ĐẾM NGƯỢC
+// [API SỬA ĐỒNG BỘ CẤU TRÚC PHẲNG] LỌC MÁY THEO VÍ NGƯỜI THUÊ
 app.get('/api/products/rented-by/:renterAddress', async (req, res) => {
   try {
     const { renterAddress } = req.params;
@@ -193,12 +193,9 @@ app.get('/api/products/rented-by/:renterAddress', async (req, res) => {
         status: product.status,
         pricePerHour: product.pricePerHour,
         condition: product.condition,
-        credentials: {
-          ip: mockIP,
-          port: "22",
-          username: "root",
-          password: Math.random().toString(36).substring(2, 12)
-        },
+        // Đã làm phẳng dữ liệu theo đúng chuẩn yêu cầu mới của Ân
+        message: "Máy chủ đang hoạt động ổn định",
+        ipAddress: mockIP,
         timeLeft: "04 giờ 15 phút"
       };
     });
@@ -209,7 +206,7 @@ app.get('/api/products/rented-by/:renterAddress', async (req, res) => {
   }
 });
 
-// [API SỬA ĐỔI] LỌC MÁY THEO VÍ CHỦ MÁY - CẤP DATA XỬ LÝ KHỦNG HOẢNG
+// [API] LỌC MÁY THEO VÍ CHỦ MÁY - CẤP DATA XỬ LÝ KHỦNG HOẢNG
 app.get('/api/products/owned-by/:ownerAddress', async (req, res) => {
   try {
     const { ownerAddress } = req.params;
@@ -252,7 +249,7 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
-// [API] BƯỚC 3: TỰ ĐỘNG KHỞI TẠO MÁY CHỦ VÀ CẤP USER/PASS
+// [API ĐÃ VÁ LỖI CÚ PHÁP] BƯỚC 3: TỰ ĐỘNG KHỞI TẠO MÁY CHỦ VÀ TRẢ VỀ CẤU TRÚC PHẲNG
 app.post('/api/products/:id/provision', upload.none(), async (req, res) => {
   try {
     const { id } = req.params;
@@ -267,18 +264,16 @@ app.post('/api/products/:id/provision', upload.none(), async (req, res) => {
     }
     await product.save();
 
-    const mockIP = `143.198.${Math.floor(Math.random() * 254)}.${Math.floor(Math.random() * 254)}`;
-    const mockPass = Math.random().toString(36).substring(2, 14).toUpperCase();
+    const mockIP = `192.168.99.${Math.floor(Math.random() * 254)}`;
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "Kích hoạt tài nguyên máy chủ thành công! Bắt đầu 10 phút đếm ngược thử nghiệm.",
-      credentials: { ip: mockIP, port: "22", username: "root", password: mockPass },
-      countdown: "10 minutes"
+      message: "Máy chủ đang được khởi tạo thành công! Bắt đầu 10 phút đếm ngược thử nghiệm.",
+      ipAddress: mockIP
     });
   } catch (error) {
     console.error("❌ Lỗi kích hoạt máy chủ:", error.message);
-    res.status(500).json({ success: false, message: "Lỗi khởi tạo tài nguyên máy chủ." });
+    return res.status(500).json({ success: false, message: "Lỗi khởi tạo tài nguyên máy chủ." });
   }
 });
 
@@ -344,6 +339,22 @@ app.post('/api/auth/login', upload.none(), (req, res) => {
 
 app.get('/', (req, res) => {
   res.send("🚀Server Backend của dự án Thuê Máy Chủ Phi Tập Trung (Cloud Server Rental) đang hoạt động mượt mà!");
+});
+
+// [API CHUẨN ĐẾM GIỜ] Trả về thời gian đếm ngược thực cho Dashboard
+app.get('/api/session-time/:productId', async (req, res) => {
+    try {
+        // Giả lập thời gian còn lại là 7200 giây (2 tiếng) để Frontend chạy đếm ngược thật
+        const timeLeftInSeconds = 7200; 
+        
+        return res.status(200).json({
+            success: true,
+            productId: req.params.productId,
+            timeLeft: timeLeftInSeconds
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 const PORT = process.env.PORT || 9999;
