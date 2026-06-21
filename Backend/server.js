@@ -28,11 +28,11 @@ async function connectDatabase() {
   try {
     console.log("⏳ Đang kết nối tới Cơ sở dữ liệu đám mây MongoDB Atlas...");
     
-    // CHUỖI KẾT NỐI KHÔNG DÙNG SRV - ĐÃ XUỐNG DÒNG VÀ CHUẨN HÓA REPLICA SET
-    const atlasUri = "mongodb://127.0.0.1:27017/blockchain_rental";    
-    // ĐÃ TÁCH XUỐNG DÒNG RIÊNG BIỆT
-    await mongoose.connect(atlasUri, {
-      serverSelectionTimeoutMS: 10000, // Timeout 10 giây
+    // ƯU TIÊN LẤY BIẾN MÔI TRƯỜNG TRÊN RENDER TRƯỚC, NẾU KHÔNG CÓ MỚI CHẠY LOCALHOST
+    const dbURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/blockchain_rental';
+    
+    await mongoose.connect(dbURI, {
+      serverSelectionTimeoutMS: 10000, // Timeout 10 giây nếu không kết nối được
     });
     
     console.log("✅ Kết nối MongoDB Atlas thành công!");
