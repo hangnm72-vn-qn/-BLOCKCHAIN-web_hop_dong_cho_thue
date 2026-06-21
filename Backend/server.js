@@ -2,37 +2,40 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
+const http = require('http');
+const { Server } = require('socket.io');
+const cron = require('node-cron');
 require('dotenv').config();
 
-// Import hàm tìm kiếm từ file Product.js
-const { searchProducts } = require('./Product'); 
+// Import hàm tìm kiếm và Model từ file Product.js
+const { searchProducts, Product } = require('./Product'); 
 
 const app = express();
+const server = http.createServer(app);
 
-// Cơ sở dữ liệu mảng tạm thời dùng để lưu tài khoản giả lập
-const usersDb = []; 
-
-// Cấu hình Middleware (Bắt buộc phải đặt TRÊN các Route API)
+// Cấu hình CORS cho phép Frontend kết nối HTTP và Socket
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 1. Cấu hình upload ảnh/tài liệu tạm thời vào bộ nhớ RAM
-const upload = multer({ storage: multer.memoryStorage() });
+const io = new Server(server, {
+  cors: { origin: "*" } 
+});
 
-// 2. Import Model Sản phẩm (Thiết bị/Máy chủ) chuẩn
-const { Product } = require('./Product');
+// Cơ sở dữ liệu mảng tạm thời dùng để lưu tài khoản giả lập
+const usersDb = []; 
+
+// Cấu hình upload ảnh/tài liệu tạm thời vào bộ nhớ RAM
+const upload = multer({ storage: multer.memoryStorage() });
 
 // 3. Tự động kết nối Database và bơm dữ liệu Máy Chủ cấu hình mẫu
 async function connectDatabase() {
   try {
     console.log("⏳ Đang kết nối tới Cơ sở dữ liệu đám mây MongoDB Atlas...");
-    
-    // ƯU TIÊN LẤY BIẾN MÔI TRƯỜNG TRÊN RENDER TRƯỚC, NẾU KHÔNG CÓ MỚI CHẠY LOCALHOST
     const dbURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/blockchain_rental';
     
     await mongoose.connect(dbURI, {
-      serverSelectionTimeoutMS: 10000, // Timeout 10 giây nếu không kết nối được
+      serverSelectionTimeoutMS: 10000, 
     });
     
     console.log("✅ Kết nối MongoDB Atlas thành công!");
@@ -99,14 +102,81 @@ async function connectDatabase() {
 
 connectDatabase();
 
+// Lắng nghe kết nối Socket từ Frontend
+io.on('connection', (socket) => {
+  console.log('⚡ Có thiết bị kết nối Socket thành công: ', socket.id);
+});
+
+// ⏱️ CRON JOB: Chạy tự động mỗi phút một lần để quét thời gian thuê máy
+cron.schedule('* * * * *', async () => {
+  console.log('⏳ Cron Job đang quét các hệ thống máy chủ đang hoạt động...');
+  try {
+    const now = new Date();
+    const fifteenMinutesInMs = 15 * 60 * 1000;
+
+    // Lọc các máy đang ở trạng thái thuê (Pending hoặc Rented - Tùy cấu trúc của nhóm cậu)
+    const activeProducts = await Product.find({ status: { $in: ['Pending', 'Rented'] } });
+
+    activeProducts.forEach(product => {
+      // Giả lập hoặc tính toán dựa trên updatedAt/startTime của nhóm cậu
+      if (product.updatedAt) {
+        const startTime = new Date(product.updatedAt);
+        const durationInMs = 1 * 60 * 60 * 1000; // Giả sử mặc định thuê 1 tiếng để test
+        const endTime = startTime.getTime() + durationInMs;
+        const timeLeft = endTime - now.getTime();
+
+        // Nếu thời gian còn lại nằm trong khoảng sát nút 15 phút
+        if (timeLeft > 0 && timeLeft <= fifteenMinutesInMs && timeLeft > (14 * 60 * 1000)) {
+          
+          // Bắn tín hiệu realtime cảnh báo đích danh ví người thuê
+          io.emit(`warning-${product.renterAddress}`, {
+            message: `Máy chủ "${product.title}" của bạn chỉ còn lại 15 phút thuê! Vui lòng gia hạn thêm giao dịch.`,
+            timeLeftInMinutes: 15,
+            productId: product._id
+          });
+          
+          console.log(`🚨 Đã bắn cảnh báo socket cho ví: ${product.renterAddress}`);
+        }
+      }
+    });
+  } catch (error) {
+    console.error("❌ Lỗi trong tiến trình chạy Cron Job:", error.message);
+  }
+});
+
 // ==========================================
-// 🚀 KHU VỰC CÁC ROUTE ĐƯỜNG DẪN TĨNH 🚀
+// 🚀 KHU VỰC CÁC ROUTE ĐƯỜNG DẪN API 🚀
 // ==========================================
 
-// ⭐ ĐÃ ĐỔI VỊ TRÍ VÀ FIX ĐỒNG BỘ: Định nghĩa API Tìm kiếm gói máy chủ
+// [API CHUẨN ĐẾM GIỜ] Trả về thời gian đếm ngược thực từ Database cho Dashboard Nhóm 2
+app.get('/api/session-time/:productId', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.productId);
+    if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy thông tin máy chủ" });
+
+    const now = new Date();
+    // Lấy mốc thời gian kích hoạt thuê (Dùng tạm thời gian cập nhật trạng thái mới nhất)
+    const startTime = new Date(product.updatedAt || now);
+    const durationInMs = 1 * 60 * 60 * 1000; // Thời gian thuê mặc định: 1 tiếng
+    const endTime = startTime.getTime() + durationInMs;
+    const timeLeftInMs = endTime - now.getTime();
+
+    // Tính số giây còn lại (Nếu nhỏ hơn 0 thì trả về 0)
+    const timeLeftInSeconds = timeLeftInMs > 0 ? Math.floor(timeLeftInMs / 1000) : 0;
+
+    return res.status(200).json({
+      success: true,
+      productId: product._id,
+      timeLeft: timeLeftInSeconds,
+      status: timeLeftInSeconds > 0 ? product.status : "Expired"
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 app.get('/api/products/search', searchProducts);
 
-// [API] Lấy danh sách tất cả các gói máy chủ đang cho thuê
 app.get('/api/products', async (req, res) => {
   try {
     const products = await Product.find();
@@ -116,72 +186,43 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-// [API] Cập nhật trạng thái hàng loạt (ĐÃ TỐI ƯU CHO SMART CONTRACT)
 app.put('/api/products/bulk-status', upload.none(), async (req, res) => {
   try {
     const { ids, status } = req.body; 
-    console.log(`🔄 Yêu cầu cập nhật hàng loạt trạng thái sang: "${status}"`);
-
-    if (!status) return res.status(400).json({ success: false, message: 'Thiếu trường status trong body!' });
+    if (!status) return res.status(400).json({ success: false, message: 'Thiếu trường status!' });
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lòng truyền lên một mảng danh sách các _id' });
+      return res.status(400).json({ success: false, message: 'Vui lòng truyền một mảng ids' });
     }
 
     const objectIds = ids.map(id => new mongoose.Types.ObjectId(id));
+    const result = await Product.updateMany({ _id: { $in: objectIds } }, { $set: { status: status } });
 
-    const result = await Product.updateMany(
-      { _id: { $in: objectIds } }, 
-      { $set: { status: status } }
-    );
-
-    res.status(200).json({
-      success: true,
-      message: `Đã cập nhật trạng thái thành công cho các máy chủ được chọn!`,
-      matchedCount: result.matchedCount,
-      modifiedCount: result.modifiedCount
-    });
+    res.status(200).json({ success: true, matchedCount: result.matchedCount, modifiedCount: result.modifiedCount });
   } catch (error) {
-    console.error('❌ Lỗi cập nhật hàng loạt:', error.message);
-    res.status(500).json({ success: false, message: 'Lỗi hệ thống Backend không thể cập nhật hàng loạt.' });
+    res.status(500).json({ success: false, message: 'Lỗi cập nhật hàng loạt.' });
   }
 });
 
-// [API] Đăng máy chủ cho thuê (Tự động nạp ảnh Mockup do đã gỡ bỏ Pinata IPFS)
 app.post('/api/products', upload.single('image'), async (req, res) => {
   try {
     const { title, description, pricePerHour, depositAmount, ownerAddress, condition } = req.body;
-    
     if (!title || !pricePerHour || !ownerAddress) {
-      return res.status(400).json({ success: false, message: 'Vui lòng điền đầy đủ thông tin bắt buộc (title, pricePerHour, ownerAddress)!' });
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc!' });
     }
 
     const imageUrl = "https://images.unsplash.com/photo-1600132806370-bf17e65e942f?q=80&w=600&auto=format&fit=crop"; 
-
     const newProduct = new Product({
-      title,
-      description: description || "Không có mô tả thông số kỹ thuật chi tiết.",
-      pricePerHour: Number(pricePerHour),
-      depositAmount: depositAmount ? Number(depositAmount) : 0, 
-      ownerAddress,
-      renterAddress: "",
-      images: [imageUrl],
-      status: 'Available',
-      condition: condition || "Uptime SLA 99.99% - Băng thông ổn định",
-      penaltyTerms: {
-        lateFee: "+0.005 ETH / giờ quá hạn thanh toán",
-        damageFee: "0 (Hỗ trợ xử lý kỹ thuật miễn phí)",
-        lossFee: "Thu hồi tài nguyên máy chủ sau 24h quá hạn"
-      }
+      title, description, pricePerHour: Number(pricePerHour), depositAmount: Number(depositAmount || 0),
+      ownerAddress, renterAddress: "", images: [imageUrl], status: 'Available', condition
     });
 
     await newProduct.save();
-    res.status(201).json({ success: true, message: 'Đăng gói dịch vụ máy chủ thành công!', data: newProduct });
+    res.status(201).json({ success: true, data: newProduct });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi hệ thống Backend không thể đăng gói máy chủ.' });
+    res.status(500).json({ success: false, message: 'Lỗi đăng máy chủ.' });
   }
 });
 
-// [API SỬA ĐỒNG BỘ CẤU TRÚC PHẲNG] LỌC MÁY THEO VÍ NGƯỜI THUÊ
 app.get('/api/products/rented-by/:renterAddress', async (req, res) => {
   try {
     const { renterAddress } = req.params;
@@ -190,12 +231,7 @@ app.get('/api/products/rented-by/:renterAddress', async (req, res) => {
       status: { $ne: 'Available' }
     });
 
-    if (!myRentals || myRentals.length === 0) {
-      return res.status(200).json({ success: true, count: 0, data: [] });
-    }
-
     const formattedData = myRentals.map(product => {
-      const mockIP = `134.209.${Math.floor(Math.random() * 254)}.${Math.floor(Math.random() * 254)}`;
       return {
         _id: product._id,
         title: product.title,
@@ -203,171 +239,102 @@ app.get('/api/products/rented-by/:renterAddress', async (req, res) => {
         status: product.status,
         pricePerHour: product.pricePerHour,
         condition: product.condition,
-        // Đã làm phẳng dữ liệu theo đúng chuẩn yêu cầu mới của Ân
-        message: "Máy chủ đang hoạt động ổn định",
-        ipAddress: mockIP,
+        ipAddress: `134.209.${Math.floor(Math.random() * 254)}.${Math.floor(Math.random() * 254)}`,
         timeLeft: "04 giờ 15 phút"
       };
     });
-
-    res.status(200).json({ success: true, count: formattedData.length, data: formattedData });
+    res.status(200).json({ success: true, data: formattedData });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi hệ thống không thể lấy danh sách máy thuê.' });
+    res.status(500).json({ success: false, message: 'Lỗi lấy danh sách máy thuê.' });
   }
 });
 
-// [API] LỌC MÁY THEO VÍ CHỦ MÁY - CẤP DATA XỬ LÝ KHỦNG HOẢNG
 app.get('/api/products/owned-by/:ownerAddress', async (req, res) => {
   try {
     const { ownerAddress } = req.params;
-    const myAssets = await Product.find({
-      ownerAddress: { $regex: new RegExp(`^${ownerAddress}$`, "i") }
-    });
-
+    const myAssets = await Product.find({ ownerAddress: { $regex: new RegExp(`^${ownerAddress}$`, "i") } });
     const assetsWithComplaints = myAssets.map(asset => {
       return {
         ...asset.toObject(),
-        complaints: asset.status !== 'Available' ? [
-          {
-            issueId: "ERR_" + asset._id.toString().substring(18),
-            renterWallet: asset.renterAddress,
-            content: "Cảnh báo hệ thống: Người thuê báo lỗi mất kết nối cổng SSH (Port 22) từ môi trường ảo hóa.",
-            createdAt: "Vừa xong"
-          }
-        ] : []
+        complaints: asset.status !== 'Available' ? [{ issueId: "ERR_" + asset._id.toString().substring(18), content: "Lỗi kết nối cổng SSH." }] : []
       };
     });
-
-    res.status(200).json({ success: true, count: assetsWithComplaints.length, data: assetsWithComplaints });
+    res.status(200).json({ success: true, data: assetsWithComplaints });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi hệ thống không thể lấy danh sách máy sở hữu.' });
+    res.status(500).json({ success: false, message: 'Lỗi lấy danh sách máy sở hữu.' });
   }
 });
 
-// ==========================================
-// 🛠️ KHU VỰC CÁC ROUTE ĐƯỜNG DẪN ĐỘNG THAM SỐ (:id) 🛠️
-// ==========================================
-
-// [API] Lấy chi tiết 1 máy chủ theo ID
 app.get('/api/products/:id', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ success: false, message: 'Không tìm thấy cấu hình máy chủ này!' });
+    if (!product) return res.status(404).json({ success: false, message: 'Không tìm thấy máy chủ!' });
     res.status(200).json({ success: true, data: product });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi lấy chi tiết máy chủ.' });
   }
 });
 
-// [API ĐÃ VÁ LỖI CÚ PHÁP] BƯỚC 3: TỰ ĐỘNG KHỞI TẠO MÁY CHỦ VÀ TRẢ VỀ CẤU TRÚC PHẲNG
 app.post('/api/products/:id/provision', upload.none(), async (req, res) => {
   try {
     const { id } = req.params;
     const { renterAddress } = req.body;
-
     const product = await Product.findById(id);
     if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy gói máy chủ." });
 
     product.status = 'Pending';
-    if (renterAddress) {
-      product.renterAddress = renterAddress;
-    }
+    if (renterAddress) product.renterAddress = renterAddress;
     await product.save();
 
-    const mockIP = `192.168.99.${Math.floor(Math.random() * 254)}`;
-
-    return res.status(200).json({
-      success: true,
-      message: "Máy chủ đang được khởi tạo thành công! Bắt đầu 10 phút đếm ngược thử nghiệm.",
-      ipAddress: mockIP
-    });
+    return res.status(200).json({ success: true, message: "Khởi tạo thành công!", ipAddress: `192.168.99.${Math.floor(Math.random() * 254)}` });
   } catch (error) {
-    console.error("❌ Lỗi kích hoạt máy chủ:", error.message);
     return res.status(500).json({ success: false, message: "Lỗi khởi tạo tài nguyên máy chủ." });
   }
 });
 
-// [API] BƯỚC 6: CƯỠNG CHẾ THU HỒI MÁY VÀ ĐÓNG SỔ GIAO DỊCH
 app.post('/api/products/:id/terminate', upload.none(), async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy tài nguyên máy chủ." });
+    if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy máy chủ." });
 
-    console.log(`🚨 CƯỠNG CHẾ THU HỒI: Xóa môi trường máy ảo, giải phóng ví người thuê của máy ${req.params.id}...`);
     product.status = 'Available'; 
     product.renterAddress = "";   
     await product.save();
-
-    res.status(200).json({ success: true, message: "Đã giải phóng máy ảo về trạng thái trống (Available) thành công!" });
+    res.status(200).json({ success: true, message: "Đã giải phóng máy ảo về trạng thái Available!" });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Lỗi hệ thống không thể xử lý thu hồi máy." });
+    res.status(500).json({ success: false, message: "Lỗi thu hồi máy." });
   }
 });
 
-// [API] Cập nhật trạng thái thuê đơn lẻ từng máy chủ
 app.put('/api/products/:id/status', upload.none(), async (req, res) => {
   try {
-    const { status } = req.body; 
-    if (!status) return res.status(400).json({ success: false, message: 'Thiếu trường status!' });
-
-    const product = await Product.findByIdAndUpdate(req.params.id, { status: status }, { new: true });
+    const product = await Product.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
     if (!product) return res.status(404).json({ success: false, message: 'Không tìm thấy máy chủ!' });
-
-    res.status(200).json({ success: true, message: `Đã cập nhật trạng thái máy chủ sang: ${product.status}`, data: product });
+    res.status(200).json({ success: true, data: product });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi khi cập nhật trạng thái máy chủ.' });
+    res.status(500).json({ success: false, message: 'Lỗi cập nhật trạng thái.' });
   }
 });
 
-// ==========================================
-// 👤 HỆ THỐNG XÁC THỰC GIẢ LẬP TÀI KHOẢN CLOUD
-// ==========================================
 app.post('/api/auth/register', upload.none(), (req, res) => {
-  try {
-    const { username, password, walletAddress } = req.body;
-    if (!username || !password) return res.status(400).json({ success: false, message: 'Thiếu thông tin đăng ký!' });
-    
-    const newUser = { id: Date.now().toString(), username, password, walletAddress: walletAddress || "" };
-    usersDb.push(newUser);
-    res.status(201).json({ success: true, message: 'Đăng ký tài khoản mạng lưới thành công!', userId: newUser.id });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi hệ thống tại API Register.' });
-  }
+  const { username, password, walletAddress } = req.body;
+  if (!username || !password) return res.status(400).json({ success: false, message: 'Thiếu thông tin!' });
+  const newUser = { id: Date.now().toString(), username, password, walletAddress: walletAddress || "" };
+  usersDb.push(newUser);
+  res.status(201).json({ success: true, userId: newUser.id });
 });
 
 app.post('/api/auth/login', upload.none(), (req, res) => {
-  try {
-    const { username, password } = req.body;
-    const user = usersDb.find(u => u.username === username && u.password === password);
-    if (!user) return res.status(401).json({ success: false, message: 'Sai thông tin tài khoản Cloud!' });
-    
-    res.status(200).json({ success: true, message: 'Đăng nhập hệ thống điều khiển thành công!', user });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi hệ thống đăng nhập.' });
-  }
+  const user = usersDb.find(u => u.username === req.body.username && u.password === req.body.password);
+  if (!user) return res.status(401).json({ success: false, message: 'Sai thông tin!' });
+  res.status(200).json({ success: true, user });
 });
 
 app.get('/', (req, res) => {
-  res.send("🚀Server Backend của dự án Thuê Máy Chủ Phi Tập Trung (Cloud Server Rental) đang hoạt động mượt mà!");
-});
-
-// [API CHUẨN ĐẾM GIỜ] Trả về thời gian đếm ngược thực cho Dashboard
-app.get('/api/session-time/:productId', async (req, res) => {
-    try {
-        // Giả lập thời gian còn lại là 7200 giây (2 tiếng) để Frontend chạy đếm ngược thật
-        const timeLeftInSeconds = 7200; 
-        
-        return res.status(200).json({
-            success: true,
-            productId: req.params.productId,
-            timeLeft: timeLeftInSeconds
-        });
-    } catch (error) {
-        return res.status(500).json({ success: false, message: error.message });
-    }
+  res.send("🚀 Server Backend Cloud Server Rental đang hoạt động mượt mà!");
 });
 
 const PORT = process.env.PORT || 9999;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🤖 Hệ thống Backend đang chạy tại: http://localhost:${PORT}`);
 });
