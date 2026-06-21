@@ -60,8 +60,6 @@ function Home() {
         </div>
         <div className="flex gap-2 w-full md:w-auto">
           <Button variant="secondary" className="w-full md:w-auto">Tất cả</Button>
-          <Button variant="secondary" className="w-full md:w-auto text-slate-400">GPU RTX 3090</Button>
-          <Button variant="secondary" className="w-full md:w-auto text-slate-400">GPU RTX 4090</Button>
         </div>
       </div>
 
