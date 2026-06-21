@@ -49,3 +49,8 @@ export const terminateProduct = async (id) => {
     const response = await api.post(`/products/${id}/terminate`)
     return response.data
 }
+// Tìm kiếm sản phẩm theo từ khóa
+export const searchProducts = async (keyword) => {
+    const response = await api.get('/products/search', { params: { keyword } })
+    return response.data.data
+}
