@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Input from '../components/Input';
 import Button from '../components/Button';
-import { getAllProducts } from '../Service - Ân/productService';
+import { getAllProducts, searchProducts } from '../Service - Ân/productService';
 
 function Home() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [suggestions, setSuggestions] = useState([])
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -17,16 +19,45 @@ function Home() {
     }
     fetchProducts()
   }, [])
+  const handleSearch = async (keyword) => {
+    setSearchKeyword(keyword)
+    if (!keyword) {
+      setSuggestions([])
+      return
+    }
+    try {
+      const results = await searchProducts(keyword)
+      setSuggestions(results)
+    } catch (err) {
+      console.error('Lỗi tìm kiếm:', err)
+    }
+  }
 
   return (
     <div className="space-y-10">
       {/* Khu vực Tìm kiếm & Bộ lọc nhanh */}
       <div className="flex flex-col md:flex-row gap-4 items-end justify-between bg-slate-900/40 p-6 rounded-2xl border border-slate-800">
-        <Input
-          label="Tìm kiếm gói máy chủ"
-          placeholder="Nhập tên gói, ram... (Ví dụ: GPU RTX 3090)"
-          className="max-w-md"
-        />
+        <div className="max-w-md w-full relative">
+          <Input
+            label="Tìm kiếm gói máy chủ"
+            placeholder="Nhập tên gói, ram... (Ví dụ: GPU RTX 3090)"
+            value={searchKeyword}
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+          {suggestions.length > 0 && (
+            <div className="absolute z-20 mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
+              {suggestions.map((item) => (
+                <div
+                  key={item._id}
+                  onClick={() => navigate(`/product/${item._id}`)}
+                  className="px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 cursor-pointer border-b border-slate-800 last:border-0"
+                >
+                  {item.title}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="flex gap-2 w-full md:w-auto">
           <Button variant="secondary" className="w-full md:w-auto">Tất cả</Button>
           <Button variant="secondary" className="w-full md:w-auto text-slate-400">GPU RTX 3090</Button>
