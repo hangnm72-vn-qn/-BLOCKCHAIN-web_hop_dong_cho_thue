@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
 const http = require('http');
+const path = require('path'); // Đã thêm thư viện path để xử lý file tĩnh
 const { Server } = require('socket.io');
 const cron = require('node-cron');
 require('dotenv').config();
@@ -18,6 +19,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Cấu hình thư mục tĩnh công khai để có thể truy cập ảnh qua URL
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 const io = new Server(server, {
   cors: { origin: "*" } 
 });
@@ -25,10 +29,18 @@ const io = new Server(server, {
 // Cơ sở dữ liệu mảng tạm thời dùng để lưu tài khoản giả lập
 const usersDb = []; 
 
-// Cấu hình upload ảnh/tài liệu tạm thời vào bộ nhớ RAM
-const upload = multer({ storage: multer.memoryStorage() });
+// ⭐ ĐÃ SỬA: Cấu hình lưu trữ file của Multer (Chỉ khai báo DUY NHẤT một lần ở đây)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // Thư mục lưu file trên server
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
 
-// 3. Tự động kết nối Database và bơm dữ liệu Máy Chủ cấu hình mẫu
+// Tự động kết nối Database và bơm dữ liệu Máy Chủ cấu hình mẫu
 async function connectDatabase() {
   try {
     console.log("⏳ Đang kết nối tới Cơ sở dữ liệu đám mây MongoDB Atlas...");
@@ -114,27 +126,21 @@ cron.schedule('* * * * *', async () => {
     const now = new Date();
     const fifteenMinutesInMs = 15 * 60 * 1000;
 
-    // Lọc các máy đang ở trạng thái thuê (Pending hoặc Rented - Tùy cấu trúc của nhóm cậu)
     const activeProducts = await Product.find({ status: { $in: ['Pending', 'Rented'] } });
 
     activeProducts.forEach(product => {
-      // Giả lập hoặc tính toán dựa trên updatedAt/startTime của nhóm cậu
       if (product.updatedAt) {
         const startTime = new Date(product.updatedAt);
-        const durationInMs = 1 * 60 * 60 * 1000; // Giả sử mặc định thuê 1 tiếng để test
+        const durationInMs = 1 * 60 * 60 * 1000; 
         const endTime = startTime.getTime() + durationInMs;
         const timeLeft = endTime - now.getTime();
 
-        // Nếu thời gian còn lại nằm trong khoảng sát nút 15 phút
         if (timeLeft > 0 && timeLeft <= fifteenMinutesInMs && timeLeft > (14 * 60 * 1000)) {
-          
-          // Bắn tín hiệu realtime cảnh báo đích danh ví người thuê
           io.emit(`warning-${product.renterAddress}`, {
             message: `Máy chủ "${product.title}" của bạn chỉ còn lại 15 phút thuê! Vui lòng gia hạn thêm giao dịch.`,
             timeLeftInMinutes: 15,
             productId: product._id
           });
-          
           console.log(`🚨 Đã bắn cảnh báo socket cho ví: ${product.renterAddress}`);
         }
       }
@@ -148,6 +154,9 @@ cron.schedule('* * * * *', async () => {
 // 🚀 KHU VỰC CÁC ROUTE ĐƯỜNG DẪN API 🚀
 // ==========================================
 
+// ⭐ ĐÃ BỔ SUNG: Route tìm kiếm gói sản phẩm cho Nhóm 2 bấm chuyển trang
+app.get('/api/products/search', searchProducts);
+
 // [API CHUẨN ĐẾM GIỜ] Trả về thời gian đếm ngược thực từ Database cho Dashboard Nhóm 2
 app.get('/api/session-time/:productId', async (req, res) => {
   try {
@@ -155,13 +164,11 @@ app.get('/api/session-time/:productId', async (req, res) => {
     if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy thông tin máy chủ" });
 
     const now = new Date();
-    // Lấy mốc thời gian kích hoạt thuê (Dùng tạm thời gian cập nhật trạng thái mới nhất)
     const startTime = new Date(product.updatedAt || now);
-    const durationInMs = 1 * 60 * 60 * 1000; // Thời gian thuê mặc định: 1 tiếng
+    const durationInMs = 1 * 60 * 60 * 1000; 
     const endTime = startTime.getTime() + durationInMs;
     const timeLeftInMs = endTime - now.getTime();
 
-    // Tính số giây còn lại (Nếu nhỏ hơn 0 thì trả về 0)
     const timeLeftInSeconds = timeLeftInMs > 0 ? Math.floor(timeLeftInMs / 1000) : 0;
 
     return res.status(200).json({
@@ -175,14 +182,34 @@ app.get('/api/session-time/:productId', async (req, res) => {
   }
 });
 
-app.get('/api/products/search', searchProducts);
-
-app.get('/api/products', async (req, res) => {
+// ⭐ ĐÃ GỘP NHẤT QUÁN: Một API đăng sản phẩm duy nhất - Hỗ trợ cả upload file lẫn fallback ảnh mặc định
+app.post('/api/products', upload.array('images'), async (req, res) => {
   try {
-    const products = await Product.find();
-    res.status(200).json({ success: true, count: products.length, data: products });
+    const { title, pricePerHour, ownerAddress } = req.body;
+    if (!title || !pricePerHour || !ownerAddress) {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc (title, pricePerHour, ownerAddress)!' });
+    }
+
+    let imageUrls = [];
+    if (req.files && req.files.length > 0) {
+      // Nếu có tải ảnh thật lên từ form
+      imageUrls = req.files.map(file => `${req.protocol}://${req.get('host')}/uploads/${file.filename}`);
+    } else {
+      // Nếu không up ảnh, tự gán link Unsplash để làm ảnh backup
+      imageUrls = ["https://images.unsplash.com/photo-1600132806370-bf17e65e942f?q=80&w=600&auto=format&fit=crop"];
+    }
+    
+    const newProduct = new Product({
+      ...req.body,
+      pricePerHour: Number(pricePerHour),
+      depositAmount: Number(req.body.depositAmount || 0),
+      images: imageUrls
+    });
+    
+    await newProduct.save();
+    res.status(201).json({ success: true, data: newProduct });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi lấy danh sách máy chủ.' });
+    res.status(500).json({ success: false, message: 'Lỗi đăng máy chủ.', error: error.message });
   }
 });
 
@@ -203,26 +230,6 @@ app.put('/api/products/bulk-status', upload.none(), async (req, res) => {
   }
 });
 
-app.post('/api/products', upload.single('image'), async (req, res) => {
-  try {
-    const { title, description, pricePerHour, depositAmount, ownerAddress, condition } = req.body;
-    if (!title || !pricePerHour || !ownerAddress) {
-      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc!' });
-    }
-
-    const imageUrl = "https://images.unsplash.com/photo-1600132806370-bf17e65e942f?q=80&w=600&auto=format&fit=crop"; 
-    const newProduct = new Product({
-      title, description, pricePerHour: Number(pricePerHour), depositAmount: Number(depositAmount || 0),
-      ownerAddress, renterAddress: "", images: [imageUrl], status: 'Available', condition
-    });
-
-    await newProduct.save();
-    res.status(201).json({ success: true, data: newProduct });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi đăng máy chủ.' });
-  }
-});
-
 app.get('/api/products/rented-by/:renterAddress', async (req, res) => {
   try {
     const { renterAddress } = req.params;
@@ -233,14 +240,8 @@ app.get('/api/products/rented-by/:renterAddress', async (req, res) => {
 
     const formattedData = myRentals.map(product => {
       return {
-        _id: product._id,
-        title: product.title,
-        description: product.description,
-        status: product.status,
-        pricePerHour: product.pricePerHour,
-        condition: product.condition,
-        ipAddress: `134.209.${Math.floor(Math.random() * 254)}.${Math.floor(Math.random() * 254)}`,
-        timeLeft: "04 giờ 15 phút"
+        ...product.toObject(),
+        ipAddress: `134.209.${Math.floor(Math.random() * 254)}.${Math.floor(Math.random() * 254)}`
       };
     });
     res.status(200).json({ success: true, data: formattedData });
