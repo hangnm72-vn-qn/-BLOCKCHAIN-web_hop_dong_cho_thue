@@ -458,7 +458,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserProvider, Contract, parseUnits } from 'ethers';
 import { useNavigate } from 'react-router-dom';
-import { createProduct } from '../Service - Ân/productService';
+import { createProduct, getSessionTime } from '../Service - Ân/productService';
 import { createRentalFactoryContract, SEPOLIA_CHAIN_ID } from '../contracts/rentalFactoryConfig';
 
 function Dashboard({ currentTab }) { // Đổi từ currentRole sang currentTab để quản lý luồng Menu tách biệt
@@ -475,6 +475,9 @@ function Dashboard({ currentTab }) { // Đổi từ currentRole sang currentTab 
 
   // Giả lập số giây còn lại từ API (Ví dụ: 9 phút 50 giây = 590 giây)
   const [timeLeft, setTimeLeft] = useState(590);
+  const [activeProductId, setActiveProductId] = useState(
+    localStorage.getItem('trustrent.activeProductId') || null
+  );
   const [showToast, setShowToast] = useState(false);
   const [showNegotiation, setShowNegotiation] = useState(false);
 
@@ -491,14 +494,14 @@ function Dashboard({ currentTab }) { // Đổi từ currentRole sang currentTab 
   const [submitMessage, setSubmitMessage] = useState('');
 
   // Logic chạy đồng hồ đếm ngược bằng JavaScript
+  // Logic chạy đồng hồ đếm ngược giả lập (chỉ dùng khi chưa có productId thật)
   useEffect(() => {
+    if (activeProductId) return; // Có data thật rồi thì không cần đếm giả nữa
     if (timeLeft <= 0 || serverData.status === 'None') return;
 
     const timer = setInterval(() => {
       setTimeLeft((prevTime) => {
         const newTime = prevTime - 1;
-
-        // Tự động bật Toast cảnh báo khi thời gian còn dưới 9 phút 45 giây (để dễ test demo)
         if (newTime === 585) {
           setShowToast(true);
         }
@@ -507,7 +510,34 @@ function Dashboard({ currentTab }) { // Đổi từ currentRole sang currentTab 
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft, serverData.status]);
+  }, [timeLeft, serverData.status, activeProductId]);
+
+  // Gọi API thật lấy thời gian đếm ngược từ Backend
+  useEffect(() => {
+    if (!activeProductId) return;
+
+    const fetchSessionTime = async () => {
+      try {
+        const data = await getSessionTime(activeProductId);
+        setTimeLeft(data.timeLeft);
+
+        if (data.timeLeft <= 900 && data.timeLeft > 0) {
+          setShowToast(true);
+        }
+
+        if (data.status === 'Active' || data.status === 'Pending') {
+          setServerData(prev => ({ ...prev, status: data.status === 'Pending' ? 'Testing' : 'Active' }));
+        }
+      } catch (err) {
+        console.error('Lỗi lấy thời gian phiên thuê:', err);
+      }
+    };
+
+    fetchSessionTime(); // gọi ngay lần đầu
+    const interval = setInterval(fetchSessionTime, 5000); // cập nhật mỗi 5 giây
+
+    return () => clearInterval(interval);
+  }, [activeProductId]);
 
   // Hàm biến biến đổi số giây thành định dạng Phút:Giây (MM:SS)
   const formatTime = (seconds) => {
