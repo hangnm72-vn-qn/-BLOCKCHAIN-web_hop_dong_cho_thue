@@ -216,11 +216,11 @@ function ProductDetail() {
                       const prov = await provisionProduct(product._id, renterAddress);
                       if (prov && prov.success) {
                         setCredentials(prov);
+                        localStorage.setItem('trustrent.activeProductId', product._id);
                       }
                     } catch (e) {
                       console.error("Lỗi gọi API Provision:", e);
                     }
-
                     setMessage('Thuê thành công. ContractId: ' + newContractId);
                   } catch (err) {
                     console.error(err);
@@ -380,6 +380,7 @@ function ProductDetail() {
                     // 🔥 ĐÃ VÁ LỖI: Sử dụng terminateProduct của Ân để xóa hẳn ví renterAddress khỏi DB
                     try {
                       await terminateProduct(product._id);
+                      localStorage.removeItem('trustrent.activeProductId'); // Thêm dòng này
                       // Refresh lại trang để cập nhật giao diện máy trống
                       window.location.reload();
                     } catch (e) {

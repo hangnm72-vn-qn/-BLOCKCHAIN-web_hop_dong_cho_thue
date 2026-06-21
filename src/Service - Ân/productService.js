@@ -54,3 +54,8 @@ export const searchProducts = async (keyword) => {
     const response = await api.get('/products/search', { params: { keyword } })
     return response.data.data
 }
+// Lấy số giây còn lại của phiên thuê (real-time đếm ngược)
+export const getSessionTime = async (productId) => {
+    const response = await api.get(`/session-time/${productId}`)
+    return response.data
+}
