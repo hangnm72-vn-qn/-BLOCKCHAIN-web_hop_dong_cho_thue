@@ -24,29 +24,29 @@ const upload = multer({ storage: multer.memoryStorage() });
 const { Product } = require('./Product');
 
 // 3. Tự động kết nối Database và bơm dữ liệu Máy Chủ cấu hình mẫu
-// Thêm thư viện dns của Node.js vào ngay trong hàm (hoặc đầu file) để ép dùng DNS Google
-const dns = require('dns');
-dns.setServers(['8.8.8.8', '8.8.4.4']); // Ép hệ thống dùng DNS của Google, bỏ qua DNS nhà mạng bị chặn
-
 async function connectDatabase() {
   try {
     console.log("⏳ Đang kết nối tới Cơ sở dữ liệu đám mây MongoDB Atlas...");
     
-    // Sử dụng chuỗi kết nối chuẩn SRV ngắn gọn của cụm mới Kieuhttk230506
-    const atlasUri = "mongodb+srv://kieuhuynh230506_db_user:Kieu23052006@kieuhttk230506.edgottj.mongodb.net/blockchain_rental?retryWrites=true&w=majority&appName=Kieuhttk230506";
+    // CHUỖI KẾT NỐI KHÔNG DÙNG SRV - ĐÃ XUỐNG DÒNG VÀ CHUẨN HÓA REPLICA SET
+    const atlasUri = "mongodb://127.0.0.1:27017/blockchain_rental";    
+    // ĐÃ TÁCH XUỐNG DÒNG RIÊNG BIỆT
+    await mongoose.connect(atlasUri, {
+      serverSelectionTimeoutMS: 10000, // Timeout 10 giây
+    });
     
-    await mongoose.connect(atlasUri);
+    console.log("✅ Kết nối MongoDB Atlas thành công!");
     
     const count = await Product.countDocuments();
     if (count === 0) {
-      console.log("🖥️ Chưa có cấu hình máy chủ, tiến hành nạp 3 cụm Cloud Server mẫu...");
+      console.log("🖥️ Chưa có cấu hình máy chủ, tiến hành nạp dữ liệu mẫu...");
       await Product.insertMany([
         {
           title: "Cloud Server Compute Optimized - Gói Basic",
           description: "Cấu hình 4 vCPU, 16GB RAM, 100GB NVMe SSD. Phù hợp cho deploy ứng dụng Web, API Server hiệu năng trung bình.",
           pricePerHour: 0.002,
           depositAmount: 0,   
-          ownerAddress: "0x71C7656EC7ab88b098defB751B7401B5f6d83A9b",
+          ownerAddress: "0x71C7656EC7ab88b098defB751B7401B5f6d8A9b",
           renterAddress: "",
           images: ["https://images.unsplash.com/photo-1600132806370-bf17e65e942f?q=80&w=600&auto=format&fit=crop"],
           status: "Available",
@@ -93,9 +93,10 @@ async function connectDatabase() {
       console.log("✅ Đã nạp dữ liệu danh mục máy chủ mẫu thành công!");
     }
   } catch (err) {
-    console.error("❌ Lỗi kết nối Database MongoDB Atlas:", err);
+    console.error("❌ Lỗi kết nối Database MongoDB Atlas:", err.message);
   }
 }
+
 connectDatabase();
 
 // ==========================================

@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-    baseURL: 'https://rental-backend-3j77.onrender.com/api'
+    baseURL: 'http://localhost:9999/api'
 })
 
 api.interceptors.request.use((config) => {
