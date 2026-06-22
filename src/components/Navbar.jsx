@@ -6,9 +6,13 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
   const navigate = useNavigate();
   const location = useLocation();
 
+  // ĐỊNH NGHĨA VÍ CHỦ MÁY (Hãy dán địa chỉ ví Chủ máy của bạn vào đây)
+  const LESSOR_WALLET = "0x3d3d09D3BB73076968637dE1883844F950D58BA4".toLowerCase(); 
+  const currentWallet = (walletAddress || '').toLowerCase();
+
   // Hàm xử lý khi bấm đổi sang quyền Chủ máy
   const handleGoToLessor = () => {
-    onChangeTab('lessor');
+    onChangeTab('lessor-workspace'); // Đồng bộ chuẩn theo file Dashboard
     navigate('/dashboard');
   };
 
@@ -18,9 +22,9 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
     navigate('/'); // Đưa người dùng về Trang chủ 
   };
 
-  // CẬP NHẬT: Hàm kiểm soát hành vi bấm vào Logo TrustRent theo ngữ cảnh quyền hạn
+  // Hàm kiểm soát hành vi bấm vào Logo TrustRent theo ngữ cảnh quyền hạn
   const handleLogoClick = () => {
-    if (currentTab === 'lessor') {
+    if (currentTab === 'lessor-workspace') {
       // Nếu đang ở Kênh Chủ máy: Bắt buộc phải có bước xác nhận trước
       const isConfirm = window.confirm(
         "Bạn đang ở Không gian Chủ máy. Bạn có chắc chắn muốn rời khỏi trình quản trị để quay về Trang chủ dành cho Khách hàng?"
@@ -41,7 +45,7 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
       {/* KHỐI TRÁI: LOGO & MENU THEO NGỮ CẢNH */}
       <div className="flex items-center gap-8">
         
-        {/* CẬP NHẬT: Đổi từ thẻ Link sang div để xử lý logic confirm chặn luồng thoát của Chủ máy */}
+        {/* LOGO xử lý logic confirm chặn luồng thoát của Chủ máy */}
         <div 
           onClick={handleLogoClick}
           className="font-bold text-xl flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity select-none"
@@ -50,7 +54,7 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
         </div>
 
         {/* ĐIỀU KIỆN 1: Nếu KHÔNG PHẢI là tab Chủ máy (Tức là đang làm Khách hàng) */}
-        {currentTab !== 'lessor' ? (
+        {currentTab !== 'lessor-workspace' ? (
           <div className="hidden md:flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850">
             <button
               type="button"
@@ -65,7 +69,7 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
             </button>
           </div>
         ) : (
-          /* ĐIỀU KIỆN 2: Nếu ĐANG LÀM CHỦ MÁY (lessor) -> Ẩn toàn bộ link liên quan đến đi thuê */
+          /* ĐIỀU KIỆN 2: Nếu ĐANG LÀM CHỦ MÁY (lessor-workspace) -> Ẩn toàn bộ link liên quan đến đi thuê */
           <div className="hidden md:flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850">
             <span className="text-xs font-bold text-emerald-400 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg select-none flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -79,14 +83,27 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
       <div className="flex items-center gap-4">
         
         {/* NÚT THAY ĐỔI QUYỀN HẠN LINH HOẠT THEO DIỆN QUẢN LÝ */}
-        {currentTab !== 'lessor' ? (
-          <button
-            type="button"
-            onClick={handleGoToLessor}
-            className="text-xs font-bold text-slate-300 hover:text-emerald-400 bg-slate-950 border border-slate-850 hover:border-emerald-500/30 px-3 py-2 rounded-xl cursor-pointer transition-all shadow-sm"
-          >
-            ⚙️ Kênh Chủ Máy
-          </button>
+        {currentTab !== 'lessor-workspace' ? (
+          // Kiểm tra danh tính ví trước khi cho phép vào Kênh Chủ Máy
+          currentWallet === LESSOR_WALLET ? (
+            <button
+              type="button"
+              onClick={handleGoToLessor}
+              className="text-xs font-bold text-slate-300 hover:text-emerald-400 bg-slate-950 border border-slate-850 hover:border-emerald-500/30 px-3 py-2 rounded-xl cursor-pointer transition-all shadow-sm"
+            >
+              ⚙️ Kênh Chủ Máy
+            </button>
+          ) : (
+            // Khóa cứng hiển thị nếu ví hiện tại thuộc về Khách hàng (Hoặc chưa đúng ví chủ máy)
+            <button
+              type="button"
+              disabled
+              title="Quyền truy cập bị từ chối: Ví của bạn không sở hữu tài nguyên cho thuê."
+              className="text-xs font-bold text-slate-600 bg-slate-950/45 border border-slate-900 px-3 py-2 rounded-xl cursor-not-allowed opacity-55 flex items-center gap-1.5"
+            >
+              🔒 Kênh Chủ Máy
+            </button>
+          )
         ) : (
           <button
             type="button"
