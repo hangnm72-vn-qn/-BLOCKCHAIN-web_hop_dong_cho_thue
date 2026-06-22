@@ -1,51 +1,76 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+// import { getProductsByOwner } from '../Service - Ân/productService'; // Bỏ comment nếu bạn có hàm lấy sản phẩm theo chủ sở hữu
 
 function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, currentTab, onChangeTab }) {
   const hasWalletData = Boolean(walletAddress);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ĐỊNH NGHĨA VÍ CHỦ MÁY (Hãy dán địa chỉ ví Chủ máy của bạn vào đây)
-  const LESSOR_WALLET = "0x3d3d09D3BB73076968637dE1883844F950D58BA4".toLowerCase(); 
+  // Đổi từ biến gán cứng sang trạng thái check tự động
+  const [isLessor, setIsLessor] = useState(false); 
   const currentWallet = (walletAddress || '').toLowerCase();
+
+  // TỰ ĐỘNG NHẬN DIỆN DIỆN CHỦ MÁY KHI ĐỔI VÍ
+  useEffect(() => {
+    if (!currentWallet) {
+      setIsLessor(false);
+      return;
+    }
+
+    // MÔ PHỎNG LUỒNG CHECK TỰ ĐỘNG (Bằng API hoặc Call Contract)
+    const checkOwnership = async () => {
+      try {
+        /* Cách chuẩn: Gọi API backend hoặc Contract để check xem ví này có máy nào không
+          const myMachines = await getProductsByOwner(currentWallet);
+          if (myMachines && myMachines.length > 0) setIsLessor(true);
+        */
+
+        // TẠM THỜI (Để bạn test): Cho phép bất kỳ ví nào đã từng bấm "Đăng máy thành công" 
+        // hoặc có lưu vết trong hệ thống được quyền làm chủ máy.
+        const hasCreatedMachine = localStorage.getItem(`trustrent.isLessor.${currentWallet}`);
+        if (hasCreatedMachine === 'true') {
+          setIsLessor(true);
+        } else {
+          setIsLessor(false);
+        }
+      } catch (error) {
+        setIsLessor(false);
+      }
+    };
+
+    checkOwnership();
+  }, [currentWallet]);
 
   // Hàm xử lý khi bấm đổi sang quyền Chủ máy
   const handleGoToLessor = () => {
-    onChangeTab('lessor-workspace'); // Đồng bộ chuẩn theo file Dashboard
+    onChangeTab('lessor-workspace');
     navigate('/dashboard');
   };
 
   // Hàm xử lý khi từ Chủ máy đổi quay lại quyền Khách hàng
   const handleGoToRenter = () => {
     onChangeTab('my-rentals');
-    navigate('/'); // Đưa người dùng về Trang chủ 
+    navigate('/'); 
   };
 
-  // Hàm kiểm soát hành vi bấm vào Logo TrustRent theo ngữ cảnh quyền hạn
   const handleLogoClick = () => {
     if (currentTab === 'lessor-workspace') {
-      // Nếu đang ở Kênh Chủ máy: Bắt buộc phải có bước xác nhận trước
       const isConfirm = window.confirm(
         "Bạn đang ở Không gian Chủ máy. Bạn có chắc chắn muốn rời khỏi trình quản trị để quay về Trang chủ dành cho Khách hàng?"
       );
       if (isConfirm) {
-        onChangeTab('my-rentals'); // Ép trạng thái tab quay lại quyền khách hàng
-        navigate('/');             // Điều hướng về trang chủ Chợ sản phẩm
+        onChangeTab('my-rentals'); 
+        navigate('/');             
       }
     } else {
-      // Nếu đang là Khách hàng: Thoải mái chuyển về trang chủ xem sản phẩm
       navigate('/');
     }
   };
 
   return (
     <nav className="flex justify-between items-center p-4 bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-50">
-      
-      {/* KHỐI TRÁI: LOGO & MENU THEO NGỮ CẢNH */}
       <div className="flex items-center gap-8">
-        
-        {/* LOGO xử lý logic confirm chặn luồng thoát của Chủ máy */}
         <div 
           onClick={handleLogoClick}
           className="font-bold text-xl flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity select-none"
@@ -53,7 +78,6 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
           <span>🛡️</span> TrustRent
         </div>
 
-        {/* ĐIỀU KIỆN 1: Nếu KHÔNG PHẢI là tab Chủ máy (Tức là đang làm Khách hàng) */}
         {currentTab !== 'lessor-workspace' ? (
           <div className="hidden md:flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850">
             <button
@@ -69,7 +93,6 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
             </button>
           </div>
         ) : (
-          /* ĐIỀU KIỆN 2: Nếu ĐANG LÀM CHỦ MÁY (lessor-workspace) -> Ẩn toàn bộ link liên quan đến đi thuê */
           <div className="hidden md:flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850">
             <span className="text-xs font-bold text-emerald-400 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg select-none flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -79,13 +102,10 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
         )}
       </div>
 
-      {/* KHỐI PHẢI: NÚT ĐỔI QUYỀN VÀ THÔNG TIN VÍ MULTI-CHAIN */}
       <div className="flex items-center gap-4">
-        
-        {/* NÚT THAY ĐỔI QUYỀN HẠN LINH HOẠT THEO DIỆN QUẢN LÝ */}
         {currentTab !== 'lessor-workspace' ? (
-          // Kiểm tra danh tính ví trước khi cho phép vào Kênh Chủ Máy
-          currentWallet === LESSOR_WALLET ? (
+          // THAY ĐỔI ĐIỀU KIỆN: Dùng biến tự động isLessor thay cho LESSOR_WALLET nhập tay
+          isLessor ? (
             <button
               type="button"
               onClick={handleGoToLessor}
@@ -94,7 +114,6 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
               ⚙️ Kênh Chủ Máy
             </button>
           ) : (
-            // Khóa cứng hiển thị nếu ví hiện tại thuộc về Khách hàng (Hoặc chưa đúng ví chủ máy)
             <button
               type="button"
               disabled
@@ -114,7 +133,6 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
           </button>
         )}
 
-        {/* Thông tin ví MetaMask */}
         {hasWalletData && (
           <div className="hidden sm:flex flex-col items-end text-right text-xs text-slate-300">
             <span className="font-medium text-slate-100">

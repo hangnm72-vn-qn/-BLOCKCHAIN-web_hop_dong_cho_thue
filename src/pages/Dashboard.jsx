@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserProvider, Contract, parseUnits } from 'ethers';
 import { useNavigate } from 'react-router-dom';
-import { createProduct } from '../Service - Ân/productService';
+import { createProduct } from '../Service - Ân/productService'; // Giả định có thêm hàm getAllProducts hoặc tương đương nếu cần
 import { createRentalFactoryContract, SEPOLIA_CHAIN_ID } from '../contracts/rentalFactoryConfig';
 
 function Dashboard({ currentTab }) { 
@@ -29,21 +29,46 @@ function Dashboard({ currentTab }) {
   const [showToast, setShowToast] = useState(false);
   const [showNegotiation, setShowNegotiation] = useState(false);
 
+  // STATE DANH SÁCH MÁY THỰC TẾ CỦA CHỦ VÍ (Cập nhật thời gian thực)
+  const [myProducts, setMyProducts] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+
   // STATE CHO FORM ĐĂNG MÁY CỦA CHỦ MÁY
   const [serverForm, setServerForm] = useState({
     title: '',
     description: '',
     pricePerHour: '',
     condition: '',
-    ownerAddress: currentWallet, // CẬP NHẬT: Khớp ví động theo thời gian thực
+    ownerAddress: currentWallet,
   });
   const [imageFile, setImageFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
 
-  // Tự động đồng bộ lại địa chỉ ownerAddress khi chủ máy thực hiện đổi ví MetaMask
+  // 🔄 FETCH DANH SÁCH MÁY THỜI GIAN THỰC THEO VÍ CHỦ MÁY
+  const fetchLessorProducts = async () => {
+    if (!currentWallet) return;
+    try {
+      setIsLoadingProducts(true);
+      
+      // Tạm thời lấy danh sách từ localStorage hoặc API tùy thuộc cấu trúc dự án của bạn để lọc:
+      const localData = localStorage.getItem('trustrent.products');
+      if (localData) {
+        const allProducts = JSON.parse(localData);
+        const filtered = allProducts.filter(p => (p.ownerAddress || '').toLowerCase() === currentWallet);
+        setMyProducts(filtered);
+      }
+    } catch (error) {
+      console.error("Lỗi cập nhật nhật ký vận hành:", error);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  // Tự động chạy lại luồng fetch máy & đồng bộ dữ liệu form khi chủ máy thực hiện đổi ví MetaMask
   useEffect(() => {
     setServerForm(prev => ({ ...prev, ownerAddress: currentWallet }));
+    fetchLessorProducts();
   }, [currentWallet]);
 
   // Đồng hồ đếm ngược của khách thuê
@@ -106,8 +131,30 @@ function Dashboard({ currentTab }) {
       const tx = await factoryContract.createServerPackage(serverForm.title, onChainPrice);
       await tx.wait();
 
-      await createProduct(serverForm.title, serverForm.description, serverForm.pricePerHour, serverForm.ownerAddress, serverForm.condition, imageFile);
+      // Lưu trữ dữ liệu về phía backend phục vụ hiển thị chợ máy
+      const newProduct = await createProduct(serverForm.title, serverForm.description, serverForm.pricePerHour, serverForm.ownerAddress, serverForm.condition, imageFile);
+      
+      // [Bypass Test] Giúp đồng bộ tạm thời vào mảng dữ liệu local để cập nhật giao diện lập tức
+      const localData = localStorage.getItem('trustrent.products') ? JSON.parse(localStorage.getItem('trustrent.products')) : [];
+      localData.push({
+        id: Date.now(),
+        title: serverForm.title,
+        pricePerHour: serverForm.pricePerHour,
+        ownerAddress: serverForm.ownerAddress,
+        status: 'Available' // Mới đăng lên chợ thì ở trạng thái Sẵn sàng
+      });
+      localStorage.setItem('trustrent.products', JSON.stringify(localData));
+
+      // ĐỒNG BỘ ĐA TẦNG: Lưu vết địa chỉ ví này đã trở thành chủ máy để Navbar tự động mở khóa nút bấm
+      if (currentWallet) {
+        localStorage.setItem(`trustrent.isLessor.${currentWallet}`, 'true');
+      }
+
       setSubmitMessage('Thêm máy chủ thành công!');
+      
+      // Refresh lại danh sách nhật ký ngay lập tức
+      await fetchLessorProducts();
+
       setTimeout(() => { navigate('/'); }, 1200);
     } catch (error) {
       setSubmitMessage('Lỗi kích hoạt contract hoặc backend.');
@@ -175,7 +222,7 @@ function Dashboard({ currentTab }) {
             <div className="border-t border-dashed border-slate-800 pt-4 mt-2">
               <div className="bg-rose-950/10 border border-rose-900/30 p-4 rounded-xl">
                 <h4 className="text-sm font-bold text-rose-400 mb-1">Khung đàm phán hợp đồng</h4>
-                <p className="text-xs text-slate-400">Yêu cầu báo lỗi đã ghi nhận lên Blockchain. Vui lòng đợi Chủ máy đề xuất đền bù.</p>
+                <p className="text-xs text-slate-400">Yêu cầu báo lỗi đã ghi nhận lên Blockchain. Vui lòng đợi Chủ máy giải quyết.</p>
               </div>
             </div>
           )}
@@ -215,7 +262,7 @@ function Dashboard({ currentTab }) {
                   <h3 className="text-sm font-bold text-rose-400 border-b border-slate-900 pb-2">Trung tâm xử lý khiếu nại</h3>
                   <div className="bg-rose-950/20 border border-rose-900/30 p-3.5 rounded-lg text-xs animate-pulse">
                     <span className="bg-rose-500/20 text-rose-400 px-1.5 py-0.5 rounded font-bold">CÓ KHIẾU NẠI</span>
-                    <p className="text-slate-300 mt-2">Khách thuê vừa bấm báo lỗi máy. Bạn có muốn xử lý giảm giá để lấy lại một phần tiền cọc không?</p>
+                    <p className="text-slate-300 mt-2">Khách thuê vừa Báo lỗi máy. Bạn hãy chọn hướng giải quyết phù hợp:</p>
                   </div>
                   <div className="flex flex-col gap-2">
                     <button type="button" onClick={() => { setLessorData({status: 'None'}); alert("Đã hoàn tất đề xuất giảm giá 20%!"); }} className="w-full bg-slate-900 border border-slate-800 text-amber-400 text-xs font-bold py-2.5 rounded-xl cursor-pointer">Chấp nhận bồi thường 20%</button>
@@ -224,15 +271,36 @@ function Dashboard({ currentTab }) {
                 </>
               ) : (
                 <>
-                  <h3 className="text-sm font-bold text-emerald-400 border-b border-slate-900 pb-2">Nhật ký vận hành độc quyền</h3>
-                  <p className="text-[11px] text-slate-400">Chỉ hiển thị danh sách các máy thuộc quyền sở hữu của ví bạn:</p>
-                  <div className="p-3 bg-slate-900/60 border border-slate-900 rounded-lg text-xs flex flex-col gap-1">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-300">🖥️ Máy chủ ID #9482</span>
-                      <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">Đang chạy</span>
+                  <h3 className="text-sm font-bold text-emerald-400 border-b border-slate-900 pb-2">Nhật ký vận hành</h3>
+                  <p className="text-[11px] text-slate-400">Danh sách tài nguyên thuộc sở hữu của ví bạn:</p>
+                  
+                  {isLoadingProducts ? (
+                    <p className="text-xs text-slate-500 animate-pulse">Đang đồng bộ danh sách máy...</p>
+                  ) : myProducts.length === 0 ? (
+                    <div className="p-4 border border-dashed border-slate-800 rounded-lg text-center text-xs text-slate-500">
+                      Bạn chưa đăng máy chủ nào lên hệ thống.
                     </div>
-                    <p className="text-slate-500 text-[10px]">Doanh thu tích lũy: <span className="text-emerald-400 font-bold">45.5 Token</span></p>
-                  </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto pr-1">
+                      {myProducts.map((product, idx) => (
+                        <div key={product.id || idx} className="p-3 bg-slate-900/60 border border-slate-850 rounded-lg text-xs flex flex-col gap-1 hover:border-slate-700 transition-all">
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-slate-300 truncate max-w-[130px]">🖥️ {product.title}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                              product.status === 'Rented' || product.status === 'Active'
+                                ? 'text-amber-400 bg-amber-500/10' 
+                                : 'text-emerald-400 bg-emerald-500/10'
+                            }`}>
+                              {product.status === 'Rented' || product.status === 'Active' ? 'Đang được thuê' : 'Sẵn sàng'}
+                            </span>
+                          </div>
+                          <p className="text-slate-500 text-[10px]">
+                            Đơn giá: <span className="text-slate-300">{product.pricePerHour} Token/h</span>
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             </div>
