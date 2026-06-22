@@ -154,6 +154,17 @@ cron.schedule('* * * * *', async () => {
 // 🚀 KHU VỰC CÁC ROUTE ĐƯỜNG DẪN API 🚀
 // ==========================================
 
+// ⭐ BỔ SUNG: API GET lấy toàn bộ danh sách máy chủ cho trang chủ
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await Product.find({});
+    // Trả về đúng cấu trúc JSON chứa mảng dữ liệu mà Nhóm 2 cần
+    res.status(200).json({ success: true, data: products });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi lấy danh sách máy chủ.', error: error.message });
+  }
+});
+
 // ⭐ ĐÃ BỔ SUNG: Route tìm kiếm gói sản phẩm cho Nhóm 2 bấm chuyển trang
 app.get('/api/products/search', searchProducts);
 
