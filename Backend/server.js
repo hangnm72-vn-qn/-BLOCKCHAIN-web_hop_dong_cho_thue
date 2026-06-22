@@ -193,7 +193,7 @@ app.get('/api/session-time/:productId', async (req, res) => {
   }
 });
 
-// ⭐ ĐÃ GỘP NHẤT QUÁN: Một API đăng sản phẩm duy nhất - Hỗ trợ cả upload file lẫn fallback ảnh mặc định
+// ⭐ ĐÃ CẬP NHẬT: Tự động ép ownerAddress về chữ thường để triệt tiêu lỗi Checksum
 app.post('/api/products', upload.array('images'), async (req, res) => {
   try {
     const { title, pricePerHour, ownerAddress } = req.body;
@@ -214,6 +214,7 @@ app.post('/api/products', upload.array('images'), async (req, res) => {
       ...req.body,
       pricePerHour: Number(pricePerHour),
       depositAmount: Number(req.body.depositAmount || 0),
+      ownerAddress: ownerAddress.toLowerCase(), // 🎯 ÉP VỀ CHỮ THƯỜNG Ở ĐÂY
       images: imageUrls
     });
     
