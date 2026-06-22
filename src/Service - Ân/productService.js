@@ -18,12 +18,14 @@ export const createProduct = async (title, description, pricePerHour, ownerAddre
     formData.append('title', title)
     formData.append('description', description)
     formData.append('pricePerHour', pricePerHour)
-    formData.append('depositAmount', 0) // Mặc định 0 theo yêu cầu mới
+    formData.append('depositAmount', 0)
     formData.append('ownerAddress', ownerAddress)
     formData.append('condition', condition)
-    formData.append('image', imageFile)
+    formData.append('images', imageFile) // Đổi từ 'image' thành 'images' theo yêu cầu mới
 
-    const response = await api.post('/products', formData)
+    const response = await api.post('/products', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    })
     return response.data
 }
 
