@@ -12,8 +12,12 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
     "axios": "^1.16.1",
+    "cloudinary": "^1.41.3",
     "ethers": "^6.16.0",
+    "express": "^5.2.1",
     "mongodb-memory-server": "^11.2.0",
+    "multer": "^2.2.0",
+    "multer-storage-cloudinary": "^4.0.0",
     "node-cron": "^4.4.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

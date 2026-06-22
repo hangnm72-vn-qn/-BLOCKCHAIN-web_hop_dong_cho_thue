@@ -3,48 +3,41 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
 const http = require('http');
-const path = require('path'); // Đã thêm thư viện path để xử lý file tĩnh
+const path = require('path');
 const { Server } = require('socket.io');
 const cron = require('node-cron');
 require('dotenv').config();
 
-// Import hàm tìm kiếm và Model từ file Product.js
+// ==========================================
+// 📦 IMPORT MODELS & CONFIGS (Đưa hết lên đầu)
+// ==========================================
 const { searchProducts, Product } = require('./Product'); 
+const uploadCloud = require('./config/cloudinary'); // Đảm bảo ông đã tạo file này theo hướng dẫn trước
 
 const app = express();
 const server = http.createServer(app);
 
-// Cấu hình CORS cho phép Frontend kết nối HTTP và Socket
+// Cấu hình CORS và Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Cấu hình thư mục tĩnh công khai để có thể truy cập ảnh qua URL
+// Cấu hình thư mục tĩnh dự phòng cho Local
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const io = new Server(server, {
   cors: { origin: "*" } 
 });
 
-// Cơ sở dữ liệu mảng tạm thời dùng để lưu tài khoản giả lập
 const usersDb = []; 
 
-// ⭐ ĐÃ SỬA: Cấu hình lưu trữ file của Multer (Chỉ khai báo DUY NHẤT một lần ở đây)
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Thư mục lưu file trên server
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage: storage });
-
-// Tự động kết nối Database và bơm dữ liệu Máy Chủ cấu hình mẫu
+// ==========================================
+// 🗄️ KẾT NỐI DATABASE & SEED DATA MẪU
+// ==========================================
 async function connectDatabase() {
   try {
     console.log("⏳ Đang kết nối tới Cơ sở dữ liệu đám mây MongoDB Atlas...");
-    const dbURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/blockchain_rental';
+    const dbURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/blockchain_rental';
     
     await mongoose.connect(dbURI, {
       serverSelectionTimeoutMS: 10000, 
@@ -61,7 +54,7 @@ async function connectDatabase() {
           description: "Cấu hình 4 vCPU, 16GB RAM, 100GB NVMe SSD. Phù hợp cho deploy ứng dụng Web, API Server hiệu năng trung bình.",
           pricePerHour: 0.002,
           depositAmount: 0,   
-          ownerAddress: "0x71C7656EC7ab88b098defB751B7401B5f6d8A9b",
+          ownerAddress: "0x71c7656ec7ab88b098defb751b7401b5f6d8a9b",
           renterAddress: "",
           images: ["https://images.unsplash.com/photo-1600132806370-bf17e65e942f?q=80&w=600&auto=format&fit=crop"],
           status: "Available",
@@ -77,7 +70,7 @@ async function connectDatabase() {
           description: "Cấu hình chuyên dụng cho AI Training & Graphics: 2x NVIDIA RTX 4090, 64GB RAM, 1TB NVMe SSD Enterprise.",
           pricePerHour: 0.015,
           depositAmount: 0,
-          ownerAddress: "0x95222290DD7278Aa3Dddd389Cc1E1d165CC4BAfe",
+          ownerAddress: "0x95222290dd7278aa3dddd389cc1e1d165cc4bafe",
           renterAddress: "",
           images: ["https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=600&auto=format&fit=crop"],
           status: "Available",
@@ -87,22 +80,6 @@ async function connectDatabase() {
             damageFee: "0 (Chủ server chịu trách nhiệm bảo trì phần cứng)",
             lossFee: "Xóa sạch dữ liệu môi trường ảo hóa sau 48h quá hạn"
           }
-        },
-        {
-          title: "Storage Cluster Decentralized - Gói Backup",
-          description: "Dịch vụ lưu trữ dữ liệu lớn phi tập trung, cấu hình 10TB HDD SAS, cấu hình RAID 10 an toàn tuyệt đối.",
-          pricePerHour: 0.005,
-          depositAmount: 0,
-          ownerAddress: "0x32133390DD7278Aa3Dddd389Cc1E1d165CC4BAfe",
-          renterAddress: "",
-          images: ["https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?q=80&w=600&auto=format&fit=crop"],
-          status: "Available",
-          condition: "Tự động mã hóa đầu cuối - Tốc độ đọc ghi ổn định 500MB/s",
-          penaltyTerms: {
-            lateFee: "+0.008 ETH / ngày quá hạn thanh toán",
-            damageFee: "0 (Cam kết không mất mát dữ liệu)",
-            lossFee: "Đóng băng quyền truy cập dữ liệu ngay khi hết hạn hạn hợp đồng"
-          }
         }
       ]);
       console.log("✅ Đã nạp dữ liệu danh mục máy chủ mẫu thành công!");
@@ -111,21 +88,19 @@ async function connectDatabase() {
     console.error("❌ Lỗi kết nối Database MongoDB Atlas:", err.message);
   }
 }
-
 connectDatabase();
 
-// Lắng nghe kết nối Socket từ Frontend
+// Socket.io
 io.on('connection', (socket) => {
   console.log('⚡ Có thiết bị kết nối Socket thành công: ', socket.id);
 });
 
-// ⏱️ CRON JOB: Chạy tự động mỗi phút một lần để quét thời gian thuê máy
+// ⏱️ CRON JOB quét thời gian thuê máy
 cron.schedule('* * * * *', async () => {
   console.log('⏳ Cron Job đang quét các hệ thống máy chủ đang hoạt động...');
   try {
     const now = new Date();
     const fifteenMinutesInMs = 15 * 60 * 1000;
-
     const activeProducts = await Product.find({ status: { $in: ['Pending', 'Rented'] } });
 
     activeProducts.forEach(product => {
@@ -154,21 +129,55 @@ cron.schedule('* * * * *', async () => {
 // 🚀 KHU VỰC CÁC ROUTE ĐƯỜNG DẪN API 🚀
 // ==========================================
 
-// ⭐ BỔ SUNG: API GET lấy toàn bộ danh sách máy chủ cho trang chủ
+// 1. API GET lấy toàn bộ danh sách máy chủ
 app.get('/api/products', async (req, res) => {
   try {
     const products = await Product.find({});
-    // Trả về đúng cấu trúc JSON chứa mảng dữ liệu mà Nhóm 2 cần
     res.status(200).json({ success: true, data: products });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi lấy danh sách máy chủ.', error: error.message });
   }
 });
 
-// ⭐ ĐÃ BỔ SUNG: Route tìm kiếm gói sản phẩm cho Nhóm 2 bấm chuyển trang
+// 2. API POST Đăng máy chủ mới - ĐÃ TÍCH HỢP CLOUDINARY HOÀN CHỈNH & SỬA LỖI CHECKSUM
+app.post('/api/products', uploadCloud.single('image'), async (req, res) => {
+  try {
+    const { title, pricePerHour, ownerAddress } = req.body;
+    
+    if (!title || !pricePerHour || !ownerAddress) {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc (title, pricePerHour, ownerAddress)!' });
+    }
+
+    let imageUrls = [];
+    if (req.file) {
+      // Nếu có tải file ảnh lên thành công, lấy link online HTTPS từ Cloudinary
+      imageUrls.push(req.file.path);
+    } else {
+      // Nếu không upload ảnh, tự gán link Unsplash dự phòng để tránh vỡ giao diện
+      imageUrls.push("https://images.unsplash.com/photo-1600132806370-bf17e65e942f?q=80&w=600&auto=format&fit=crop");
+    }
+
+    const newProduct = new Product({
+      ...req.body,
+      pricePerHour: Number(pricePerHour),
+      depositAmount: Number(req.body.depositAmount || 0),
+      ownerAddress: ownerAddress.toLowerCase(), // Triệt tiêu lỗi Checksum ví 1 và ví 2
+      images: imageUrls // Đồng bộ lưu dạng mảng giống data mẫu của Frontend nhóm 2
+    });
+
+    await newProduct.save();
+    return res.status(201).json({ success: true, data: newProduct });
+
+  } catch (error) {
+    console.error("❌ Lỗi API Đăng máy chủ:", error);
+    return res.status(500).json({ success: false, message: 'Lỗi server khi đăng máy chủ.', error: error.message });
+  }
+});
+
+// 3. API Tìm kiếm gói sản phẩm
 app.get('/api/products/search', searchProducts);
 
-// [API CHUẨN ĐẾM GIỜ] Trả về thời gian đếm ngược thực từ Database cho Dashboard Nhóm 2
+// 4. API Lấy thời gian đếm ngược
 app.get('/api/session-time/:productId', async (req, res) => {
   try {
     const product = await Product.findById(req.params.productId);
@@ -193,39 +202,8 @@ app.get('/api/session-time/:productId', async (req, res) => {
   }
 });
 
-// ⭐ ĐÃ CẬP NHẬT: Tự động ép ownerAddress về chữ thường để triệt tiêu lỗi Checksum
-app.post('/api/products', upload.array('images'), async (req, res) => {
-  try {
-    const { title, pricePerHour, ownerAddress } = req.body;
-    if (!title || !pricePerHour || !ownerAddress) {
-      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc (title, pricePerHour, ownerAddress)!' });
-    }
-
-    let imageUrls = [];
-    if (req.files && req.files.length > 0) {
-      // Nếu có tải ảnh thật lên từ form
-      imageUrls = req.files.map(file => `${req.protocol}://${req.get('host')}/uploads/${file.filename}`);
-    } else {
-      // Nếu không up ảnh, tự gán link Unsplash để làm ảnh backup
-      imageUrls = ["https://images.unsplash.com/photo-1600132806370-bf17e65e942f?q=80&w=600&auto=format&fit=crop"];
-    }
-    
-    const newProduct = new Product({
-      ...req.body,
-      pricePerHour: Number(pricePerHour),
-      depositAmount: Number(req.body.depositAmount || 0),
-      ownerAddress: ownerAddress.toLowerCase(), // 🎯 ÉP VỀ CHỮ THƯỜNG Ở ĐÂY
-      images: imageUrls
-    });
-    
-    await newProduct.save();
-    res.status(201).json({ success: true, data: newProduct });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Lỗi đăng máy chủ.', error: error.message });
-  }
-});
-
-app.put('/api/products/bulk-status', upload.none(), async (req, res) => {
+// 5. API Cập nhật hàng loạt trạng thái
+app.put('/api/products/bulk-status', multer().none(), async (req, res) => {
   try {
     const { ids, status } = req.body; 
     if (!status) return res.status(400).json({ success: false, message: 'Thiếu trường status!' });
@@ -242,6 +220,7 @@ app.put('/api/products/bulk-status', upload.none(), async (req, res) => {
   }
 });
 
+// 6. API Lấy danh sách máy đã thuê theo Renter
 app.get('/api/products/rented-by/:renterAddress', async (req, res) => {
   try {
     const { renterAddress } = req.params;
@@ -262,6 +241,7 @@ app.get('/api/products/rented-by/:renterAddress', async (req, res) => {
   }
 });
 
+// 7. API Lấy danh sách máy sở hữu theo Owner
 app.get('/api/products/owned-by/:ownerAddress', async (req, res) => {
   try {
     const { ownerAddress } = req.params;
@@ -278,6 +258,7 @@ app.get('/api/products/owned-by/:ownerAddress', async (req, res) => {
   }
 });
 
+// 8. API Lấy chi tiết 1 máy chủ
 app.get('/api/products/:id', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -288,7 +269,8 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
-app.post('/api/products/:id/provision', upload.none(), async (req, res) => {
+// 9. API Khởi tạo tài nguyên máy chủ khi được thuê
+app.post('/api/products/:id/provision', multer().none(), async (req, res) => {
   try {
     const { id } = req.params;
     const { renterAddress } = req.body;
@@ -305,7 +287,8 @@ app.post('/api/products/:id/provision', upload.none(), async (req, res) => {
   }
 });
 
-app.post('/api/products/:id/terminate', upload.none(), async (req, res) => {
+// 10. API Giải phóng máy chủ sau khi hết hạn
+app.post('/api/products/:id/terminate', multer().none(), async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy máy chủ." });
@@ -319,7 +302,8 @@ app.post('/api/products/:id/terminate', upload.none(), async (req, res) => {
   }
 });
 
-app.put('/api/products/:id/status', upload.none(), async (req, res) => {
+// 11. API Thay đổi trạng thái thủ công
+app.put('/api/products/:id/status', multer().none(), async (req, res) => {
   try {
     const product = await Product.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
     if (!product) return res.status(404).json({ success: false, message: 'Không tìm thấy máy chủ!' });
@@ -329,7 +313,8 @@ app.put('/api/products/:id/status', upload.none(), async (req, res) => {
   }
 });
 
-app.post('/api/auth/register', upload.none(), (req, res) => {
+// 12. API Giả lập Auth (Đăng ký / Đăng nhập)
+app.post('/api/auth/register', multer().none(), (req, res) => {
   const { username, password, walletAddress } = req.body;
   if (!username || !password) return res.status(400).json({ success: false, message: 'Thiếu thông tin!' });
   const newUser = { id: Date.now().toString(), username, password, walletAddress: walletAddress || "" };
@@ -337,16 +322,18 @@ app.post('/api/auth/register', upload.none(), (req, res) => {
   res.status(201).json({ success: true, userId: newUser.id });
 });
 
-app.post('/api/auth/login', upload.none(), (req, res) => {
+app.post('/api/auth/login', multer().none(), (req, res) => {
   const user = usersDb.find(u => u.username === req.body.username && u.password === req.body.password);
   if (!user) return res.status(401).json({ success: false, message: 'Sai thông tin!' });
   res.status(200).json({ success: true, user });
 });
 
+// API Mặc định kiểm tra Server
 app.get('/', (req, res) => {
-  res.send("🚀 Server Backend Cloud Server Rental đang hoạt động mượt mà!");
+  res.send("🚀 Server Backend Cloud Server Rental đang hoạt động mượt mà ổn định!");
 });
 
+// Khởi chạy Server
 const PORT = process.env.PORT || 9999;
 server.listen(PORT, () => {
   console.log(`🤖 Hệ thống Backend đang chạy tại: http://localhost:${PORT}`);
