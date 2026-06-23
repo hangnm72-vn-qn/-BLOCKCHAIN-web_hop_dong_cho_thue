@@ -65,4 +65,8 @@ export const getSessionTime = async (productId) => {
 export const getProductsByOwner = async (ownerAddress) => {
     const allProducts = await getAllProducts()
     return allProducts.filter(p => p.ownerAddress?.toLowerCase() === ownerAddress?.toLowerCase())
+}// Kiểm tra xem ví này đã từng đăng máy chủ nào chưa
+export const checkIsLessor = async (walletAddress) => {
+    const allProducts = await getAllProducts()
+    return allProducts.some(p => p.ownerAddress?.toLowerCase() === walletAddress?.toLowerCase())
 }

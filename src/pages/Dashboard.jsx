@@ -540,6 +540,25 @@ function Dashboard({ currentTab }) { // Đổi từ currentRole sang currentTab 
     return () => clearInterval(interval);
   }, [activeProductId]);
 
+  // Lấy danh sách máy chủ mà ví hiện tại đã đăng lên chợ
+  useEffect(() => {
+    if (currentTab !== 'lessor') return;
+
+    const walletAddress = localStorage.getItem('trustrent.walletAddress');
+    if (!walletAddress) return;
+
+    const fetchMyServers = async () => {
+      try {
+        const data = await getProductsByOwner(walletAddress);
+        setMyServers(data);
+      } catch (err) {
+        console.error('Lỗi lấy danh sách máy của tôi:', err);
+      }
+    };
+
+    fetchMyServers();
+  }, [currentTab]);
+
   // Hàm biến biến đổi số giây thành định dạng Phút:Giây (MM:SS)
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
@@ -916,18 +935,28 @@ function Dashboard({ currentTab }) { // Đổi từ currentRole sang currentTab 
                 <>
                   <h3 className="text-sm font-bold text-emerald-400 border-b border-slate-900 pb-2 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                    Nhật ký vận hành máy chủ
+                    Nhật ký vận hành máy chủ ({myServers.length})
                   </h3>
-                  <p className="text-[11px] text-slate-400 text-left leading-relaxed">Danh sách các phiên thuê đang hoạt động ổn định trên hệ thống:</p>
+                  <p className="text-[11px] text-slate-400 text-left leading-relaxed">Danh sách máy chủ bạn đã đăng lên chợ:</p>
                   <div className="flex flex-col gap-3 max-h-[220px] overflow-y-auto pr-1">
-                    <div className="p-3 bg-slate-900/60 border border-slate-900 rounded-lg text-left text-xs flex flex-col gap-1">
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-slate-300">🖥️ Máy số 01 (Google Cloud)</span>
-                        <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">Running</span>
-                      </div>
-                      <p className="text-slate-500 text-[11px]">Khách: <span className="text-blue-400 font-mono">0x71C...3A9b</span></p>
-                      <p className="text-slate-400 text-[11px] mt-0.5">Thời gian thuê còn lại: <span className="text-amber-400 font-mono font-bold">05 giờ 12 phút</span></p>
-                    </div>
+                    {myServers.length === 0 ? (
+                      <p className="text-xs text-slate-500 text-center py-4">Bạn chưa đăng máy chủ nào.</p>
+                    ) : (
+                      myServers.map((server) => (
+                        <div key={server._id} className="p-3 bg-slate-900/60 border border-slate-900 rounded-lg text-left text-xs flex flex-col gap-1">
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-slate-300">🖥️ {server.title}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${server.status === 'Available'
+                              ? 'text-emerald-400 bg-emerald-500/10'
+                              : 'text-amber-400 bg-amber-500/10'
+                              }`}>
+                              {server.status}
+                            </span>
+                          </div>
+                          <p className="text-slate-500 text-[11px]">Giá thuê: <span className="text-blue-400 font-mono">{server.pricePerHour} Token/giờ</span></p>
+                        </div>
+                      ))
+                    )}
                   </div>
                   <div className="text-[10px] text-slate-600 text-center border-t border-slate-900 pt-2">
                     🟢 Các cổng kiểm tra đều ổn định
