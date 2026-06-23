@@ -8,6 +8,7 @@ import AddProduct from './pages/AddProduct';
 import Dashboard from './pages/Dashboard';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { createRentalFactoryContract, SEPOLIA_CHAIN_ID } from './contracts/rentalFactoryConfig';
+import { checkIsLessor } from './Service - Ân/productService';
 
 function App() {
   const [walletAddress, setWalletAddress] = useState('');
@@ -41,14 +42,25 @@ function App() {
   };
 
   // Lấy số dư ETH của một địa chỉ ví
+  // Lấy số dư ETH của một địa chỉ ví
   const updateWalletData = async (provider, address) => {
     const balance = await provider.getBalance(address);
     const formattedBalance = Number(formatEther(balance)).toFixed(4);
     setWalletAddress(address);
     setWalletBalance(formattedBalance);
     persistWalletState(address, formattedBalance);
-  };
 
+    // Tự động nhận diện ví này có phải Chủ Máy không — gọi API thật
+    try {
+      const isLessor = await checkIsLessor(address);
+      if (isLessor) {
+        setActiveTab('lessor');
+        localStorage.setItem('trustrent.activeTab', 'lessor');
+      }
+    } catch (err) {
+      console.error('Lỗi kiểm tra quyền chủ máy:', err);
+    }
+  };
   // Khởi tạo RentalFactory bằng ABI + address rồi đọc dữ liệu on-chain để xác nhận contract hoạt động.
   const syncFactoryData = async (provider) => {
     try {
