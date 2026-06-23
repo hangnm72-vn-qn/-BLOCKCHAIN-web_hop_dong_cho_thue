@@ -458,7 +458,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserProvider, Contract, parseUnits } from 'ethers';
 import { useNavigate } from 'react-router-dom';
-import { createProduct, getSessionTime } from '../Service - Ân/productService';
+import { createProduct, getSessionTime, getProductsByOwner } from '../Service - Ân/productService';
 import { createRentalFactoryContract, SEPOLIA_CHAIN_ID } from '../contracts/rentalFactoryConfig';
 
 function Dashboard({ currentTab }) { // Đổi từ currentRole sang currentTab để quản lý luồng Menu tách biệt
@@ -492,6 +492,7 @@ function Dashboard({ currentTab }) { // Đổi từ currentRole sang currentTab 
   const [imageFile, setImageFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
+  const [myServers, setMyServers] = useState([]);
 
   // Logic chạy đồng hồ đếm ngược bằng JavaScript
   // Logic chạy đồng hồ đếm ngược giả lập (chỉ dùng khi chưa có productId thật)
