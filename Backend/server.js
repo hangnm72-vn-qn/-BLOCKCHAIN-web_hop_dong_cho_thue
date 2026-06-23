@@ -139,64 +139,124 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-// 2. API POST Đăng máy chủ mới - ĐÃ TÍCH HỢP CLOUDINARY HOÀN CHỈNH & SỬA LỖI CHECKSUM
-app.post('/api/products', uploadCloud.single('image'), async (req, res) => {
+// 2. API POST Đăng máy chủ mới - PHIÊN BẢN SIÊU CẤP CHỐNG SẬP (BẤM LÀ ĐĂNG ĐƯỢC NGAY)
+app.post('/api/products', (req, res, next) => {
+  // Bọc Multer Cloudinary vào trong để nếu lỗi ảnh thì tự bỏ qua, không làm sập server
+  uploadCloud.array('images', 5)(req, res, function (err) {
+    if (err) {
+      console.log("⚠️ Cảnh báo: Lỗi upload ảnh lên Cloudinary, tự động chuyển sang ảnh dự phòng.", err.message);
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
+    // Log thử dữ liệu Frontend gửi lên để kiểm tra trong Terminal
+    console.log("📩 Dữ liệu nhận từ Frontend:", req.body);
+
     const { title, pricePerHour, ownerAddress } = req.body;
     
     if (!title || !pricePerHour || !ownerAddress) {
-      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc (title, pricePerHour, ownerAddress)!' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Thiếu thông tin bắt buộc (title, pricePerHour, ownerAddress)!' 
+      });
     }
 
     let imageUrls = [];
-    if (req.file) {
-      // Nếu có tải file ảnh lên thành công, lấy link online HTTPS từ Cloudinary
-      imageUrls.push(req.file.path);
+    // Nếu có file ảnh được tải lên thành công qua Multer
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        imageUrls.push(file.path);
+      });
     } else {
-      // Nếu không upload ảnh, tự gán link Unsplash dự phòng để tránh vỡ giao diện
+      // Ảnh mặc định cấu hình đẹp mắt từ Unsplash nếu không upload được file
       imageUrls.push("https://images.unsplash.com/photo-1600132806370-bf17e65e942f?q=80&w=600&auto=format&fit=crop");
     }
 
+    // Tiến hành tạo bản ghi lưu vào MongoDB Atlas
     const newProduct = new Product({
-      ...req.body,
+      title: title,
+      description: req.body.description || "Máy chủ cấu hình cao phục vụ AI và ảo hóa.",
+      condition: req.body.condition || "Uptime SLA 99.99% - Băng thông 1Gbps không giới hạn",
       pricePerHour: Number(pricePerHour),
       depositAmount: Number(req.body.depositAmount || 0),
-      ownerAddress: ownerAddress.toLowerCase(), // Triệt tiêu lỗi Checksum ví 1 và ví 2
-      images: imageUrls // Đồng bộ lưu dạng mảng giống data mẫu của Frontend nhóm 2
+      ownerAddress: ownerAddress.trim().toLowerCase(), // Triệt tiêu hoàn toàn lỗi Checksum viết hoa/thường
+      renterAddress: "",
+      status: "Available",
+      images: imageUrls,
+      rentalDuration: Number(req.body.rentalDuration || 3600) // Thời gian thuê mặc định của nhóm 2
     });
 
     await newProduct.save();
+    console.log("✅ Đã lưu sản phẩm mới vào MongoDB thành công:", newProduct.title);
+    
     return res.status(201).json({ success: true, data: newProduct });
 
   } catch (error) {
-    console.error("❌ Lỗi API Đăng máy chủ:", error);
-    return res.status(500).json({ success: false, message: 'Lỗi server khi đăng máy chủ.', error: error.message });
+    console.error("❌ Lỗi sập hệ thống tại API Đăng máy chủ:", error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi xử lý database hoặc logic server.', 
+      error: error.message 
+    });
   }
 });
 
 // 3. API Tìm kiếm gói sản phẩm
 app.get('/api/products/search', searchProducts);
 
-// 4. API Lấy thời gian đếm ngược
+// 4. API Lấy thời gian đếm ngược - BIẾN ĐỔI THEO LOGIC MỚI CỦA NHÓM 2
 app.get('/api/session-time/:productId', async (req, res) => {
   try {
     const product = await Product.findById(req.params.productId);
     if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy thông tin máy chủ" });
 
     const now = new Date();
-    const startTime = new Date(product.updatedAt || now);
-    const durationInMs = 1 * 60 * 60 * 1000; 
-    const endTime = startTime.getTime() + durationInMs;
-    const timeLeftInMs = endTime - now.getTime();
+    // Lấy mốc thời gian lúc bắt đầu bấm kích hoạt thuê
+    const startTime = new Date(product.updatedAt || now); 
+    
+    // Số giây đã trôi qua kể từ khi kích hoạt
+    const secondsElapsed = Math.floor((now.getTime() - startTime.getTime()) / 1000);
 
-    const timeLeftInSeconds = timeLeftInMs > 0 ? Math.floor(timeLeftInMs / 1000) : 0;
+    const TRIAL_DEFAULT = 300; // 5 phút thử nghiệm = 300 giây
+    const RENTAL_TOTAL = product.rentalDuration || 3600; // Lấy thời gian thuê khách chọn từ database
 
+    let trialTimeLeft = 0;
+    let rentalTimeLeft = 0;
+    let currentStatus = product.status;
+
+    // CHẠY LOGIC CHIA ĐÔI THỜI GIAN:
+    if (secondsElapsed < TRIAL_DEFAULT) {
+      // Kịch bản A: Đang trong 5 phút thử nghiệm đầu tiên
+      trialTimeLeft = TRIAL_DEFAULT - secondsElapsed;
+      rentalTimeLeft = RENTAL_TOTAL; // Thời gian thuê chính thức chưa bị động vào
+      currentStatus = "Pending";     // Giữ trạng thái Pending
+    } else {
+      // Kịch bản B: Đã dùng hết 5 phút thử nghiệm -> Chuyển sang trừ thời gian thuê chính thức
+      trialTimeLeft = 0;
+      const rentalTimeUsed = secondsElapsed - TRIAL_DEFAULT;
+      rentalTimeLeft = Math.max(0, RENTAL_TOTAL - rentalTimeUsed);
+      
+      if (rentalTimeLeft > 0) {
+        currentStatus = "Rented"; // Chuyển sang trạng thái Rented (Đang thuê chính thức)
+      } else {
+        currentStatus = "Expired"; // Hết sạch cả 2 quỹ thời gian
+      }
+      
+      // Đồng bộ cập nhật trạng thái mới vào database nếu cần thiết
+      if (product.status !== currentStatus && product.status !== "Available") {
+         product.status = currentStatus;
+         await product.save();
+      }
+    }
+
+    // Trả về đúng cấu trúc Object JSON như nhóm 2 mong muốn
     return res.status(200).json({
-      success: true,
-      productId: product._id,
-      timeLeft: timeLeftInSeconds,
-      status: timeLeftInSeconds > 0 ? product.status : "Expired"
+      trialTimeLeft: trialTimeLeft,
+      rentalTimeLeft: rentalTimeLeft,
+      status: currentStatus
     });
+
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -269,19 +329,31 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
-// 9. API Khởi tạo tài nguyên máy chủ khi được thuê
+// 9. API Khởi tạo tài nguyên máy chủ khi được thuê - CẬP NHẬT THEO ĐƠN ĐẶT HÀNG NHÓM 2
 app.post('/api/products/:id/provision', multer().none(), async (req, res) => {
   try {
     const { id } = req.params;
-    const { renterAddress } = req.body;
+    // Lấy thêm trường durationInSeconds do khách hàng chọn từ Frontend gửi lên
+    const { renterAddress, durationInSeconds } = req.body; 
     const product = await Product.findById(id);
     if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy gói máy chủ." });
 
-    product.status = 'Pending';
+    product.status = 'Pending'; // Bắt đầu ở trạng thái Pending để thử nghiệm
     if (renterAddress) product.renterAddress = renterAddress;
+    
+    // Lưu số giây thuê chính thức mà khách đã chọn (nếu không truyền mặc định 1 tiếng = 3600s)
+    product.rentalDuration = Number(durationInSeconds || 3600); 
+    
+    // Cập nhật lại mốc thời gian bắt đầu kích hoạt
+    product.updatedAt = new Date(); 
+    
     await product.save();
 
-    return res.status(200).json({ success: true, message: "Khởi tạo thành công!", ipAddress: `192.168.99.${Math.floor(Math.random() * 254)}` });
+    return res.status(200).json({ 
+      success: true, 
+      message: "Khởi tạo thành công phiên thử nghiệm!", 
+      ipAddress: `192.168.99.${Math.floor(Math.random() * 254)}` 
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: "Lỗi khởi tạo tài nguyên máy chủ." });
   }
@@ -334,7 +406,7 @@ app.get('/', (req, res) => {
 });
 
 // Khởi chạy Server
-const PORT = process.env.PORT || 9999;
-server.listen(PORT, () => {
-  console.log(`🤖 Hệ thống Backend đang chạy tại: http://localhost:${PORT}`);
+const PORT = 5000;
+app.listen(PORT, () => {
+    console.log(`🚀 Server đang chạy mượt mà tại cổng ${PORT}`);
 });

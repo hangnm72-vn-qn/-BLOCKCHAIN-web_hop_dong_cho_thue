@@ -192,7 +192,7 @@ function App() {
               <Route path="/product/:id" element={<ProductDetail />} />
               <Route path="/add-product" element={<AddProduct />} />
               {/* ĐỒNG BỘ: Giữ nguyên prop truyền xuống Dashboard */}
-              <Route path="/dashboard" element={<Dashboard currentTab={activeTab} />} />
+              <Route path="/dashboard" element={<Dashboard currentTab={activeTab} walletAddress={walletAddress} />} />
             </Routes>
           </main>
         </div>

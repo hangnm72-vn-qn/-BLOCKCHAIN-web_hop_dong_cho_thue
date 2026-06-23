@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserProvider, Contract, parseUnits } from 'ethers';
 import { useNavigate } from 'react-router-dom';
-import { createProduct } from '../Service - Ân/productService'; // Giả định có thêm hàm getAllProducts hoặc tương đương nếu cần
+import { createProduct } from '../Service - Ân/productService'; 
 import { createRentalFactoryContract, SEPOLIA_CHAIN_ID } from '../contracts/rentalFactoryConfig';
 
-function Dashboard({ currentTab }) { 
+function Dashboard({ currentTab, walletAddress }) { 
   const navigate = useNavigate();
 
   // Lấy địa chỉ ví đang kết nối hiện tại để làm căn cứ định danh
-  const currentWallet = (localStorage.getItem('trustrent.walletAddress') || '').toLowerCase();
+  const currentWallet = (walletAddress || '').toLowerCase();
 
   // 1. STATE QUẢN LÝ CHO VÍ ĐI THUÊ (Khách hàng)
   const [renterData, setRenterData] = useState({
@@ -29,7 +29,7 @@ function Dashboard({ currentTab }) {
   const [showToast, setShowToast] = useState(false);
   const [showNegotiation, setShowNegotiation] = useState(false);
 
-  // STATE DANH SÁCH MÁY THỰC TẾ CỦA CHỦ VÍ (Cập nhật thời gian thực)
+  // STATE DANH SÁCH MÁY THỰC TẾ CỦA CHỦ VÍ (Cập nhật thời gian thực từ API)
   const [myProducts, setMyProducts] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
 
@@ -45,21 +45,23 @@ function Dashboard({ currentTab }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
 
-  // 🔄 FETCH DANH SÁCH MÁY THỜI GIAN THỰC THEO VÍ CHỦ MÁY
+  // 🔄 FETCH DANH SÁCH MÁY THỜI GIAN THỰC TỪ API LIVE RENDER
   const fetchLessorProducts = async () => {
     if (!currentWallet) return;
     try {
       setIsLoadingProducts(true);
       
-      // Tạm thời lấy danh sách từ localStorage hoặc API tùy thuộc cấu trúc dự án của bạn để lọc:
-      const localData = localStorage.getItem('trustrent.products');
-      if (localData) {
-        const allProducts = JSON.parse(localData);
-        const filtered = allProducts.filter(p => (p.ownerAddress || '').toLowerCase() === currentWallet);
+      // Gọi trực tiếp đến API Backend Live để lấy dữ liệu thực tế thay vì dùng localStorage
+      const response = await fetch('https://blockchain-web-hop-dong-cho-thue.onrender.com/api/products');
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        // Lọc danh sách máy: Chỉ hiển thị những máy có ownerAddress khớp với ví đang kết nối
+        const filtered = result.data.filter(p => (p.ownerAddress || '').toLowerCase() === currentWallet);
         setMyProducts(filtered);
       }
     } catch (error) {
-      console.error("Lỗi cập nhật nhật ký vận hành:", error);
+      console.error("Lỗi cập nhật nhật ký vận hành từ API:", error);
     } finally {
       setIsLoadingProducts(false);
     }
@@ -132,32 +134,19 @@ function Dashboard({ currentTab }) {
       await tx.wait();
 
       // Lưu trữ dữ liệu về phía backend phục vụ hiển thị chợ máy
-      const newProduct = await createProduct(serverForm.title, serverForm.description, serverForm.pricePerHour, serverForm.ownerAddress, serverForm.condition, imageFile);
+      await createProduct(serverForm.title, serverForm.description, serverForm.pricePerHour, serverForm.ownerAddress, serverForm.condition, imageFile);
       
-      // [Bypass Test] Giúp đồng bộ tạm thời vào mảng dữ liệu local để cập nhật giao diện lập tức
-      const localData = localStorage.getItem('trustrent.products') ? JSON.parse(localStorage.getItem('trustrent.products')) : [];
-      localData.push({
-        id: Date.now(),
-        title: serverForm.title,
-        pricePerHour: serverForm.pricePerHour,
-        ownerAddress: serverForm.ownerAddress,
-        status: 'Available' // Mới đăng lên chợ thì ở trạng thái Sẵn sàng
-      });
-      localStorage.setItem('trustrent.products', JSON.stringify(localData));
-
-      // ĐỒNG BỘ ĐA TẦNG: Lưu vết địa chỉ ví này đã trở thành chủ máy để Navbar tự động mở khóa nút bấm
-      if (currentWallet) {
-        localStorage.setItem(`trustrent.isLessor.${currentWallet}`, 'true');
-      }
-
       setSubmitMessage('Thêm máy chủ thành công!');
       
-      // Refresh lại danh sách nhật ký ngay lập tức
-      await fetchLessorProducts();
+      // Đợi 1 chút để dữ liệu kịp cập nhật trên DB, sau đó refresh lại danh sách nhật ký ngay lập tức
+      setTimeout(async () => {
+        await fetchLessorProducts();
+        navigate('/');
+      }, 1500);
 
-      setTimeout(() => { navigate('/'); }, 1200);
     } catch (error) {
       setSubmitMessage('Lỗi kích hoạt contract hoặc backend.');
+      console.error(error);
     } finally {
       setIsSubmitting(false);
     }

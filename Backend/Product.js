@@ -37,6 +37,13 @@ const ProductSchema = new mongoose.Schema({
     type: String,
     default: "Uptime SLA 99.99% - Băng thông 1Gbps không giới hạn - Hỗ trợ kỹ thuật phần cứng 24/7"
   },
+  
+  // 🌟 ĐÃ THÊM: Thời gian thuê chính thức (lưu bằng giây) phục vụ logic tách luồng thử nghiệm của nhóm 2
+  rentalDuration: { 
+    type: Number, 
+    default: 3600 
+  }, 
+
   penaltyTerms: {
     lateFee: { 
       type: String, 

@@ -1,54 +1,63 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-// import { getProductsByOwner } from '../Service - Ân/productService'; // Bỏ comment nếu bạn có hàm lấy sản phẩm theo chủ sở hữu
 
 function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, currentTab, onChangeTab }) {
   const hasWalletData = Boolean(walletAddress);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Đổi từ biến gán cứng sang trạng thái check tự động
   const [isLessor, setIsLessor] = useState(false); 
   const currentWallet = (walletAddress || '').toLowerCase();
 
-  // TỰ ĐỘNG NHẬN DIỆN DIỆN CHỦ MÁY KHI ĐỔI VÍ
+  // 🔄 TỰ ĐỘNG ĐỒNG BỘ KIỂM TRA QUYỀN CHỦ MÁY TỪ BACKEND LIVE
   useEffect(() => {
     if (!currentWallet) {
       setIsLessor(false);
       return;
     }
 
-    // MÔ PHỎNG LUỒNG CHECK TỰ ĐỘNG (Bằng API hoặc Call Contract)
+    let isMounted = true; 
+
     const checkOwnership = async () => {
       try {
-        /* Cách chuẩn: Gọi API backend hoặc Contract để check xem ví này có máy nào không
-          const myMachines = await getProductsByOwner(currentWallet);
-          if (myMachines && myMachines.length > 0) setIsLessor(true);
-        */
-
-        // TẠM THỜI (Để bạn test): Cho phép bất kỳ ví nào đã từng bấm "Đăng máy thành công" 
-        // hoặc có lưu vết trong hệ thống được quyền làm chủ máy.
-        const hasCreatedMachine = localStorage.getItem(`trustrent.isLessor.${currentWallet}`);
-        if (hasCreatedMachine === 'true') {
-          setIsLessor(true);
-        } else {
-          setIsLessor(false);
+        const response = await fetch('https://blockchain-web-hop-dong-cho-thue.onrender.com/api/products');
+        const result = await response.json();
+        
+        if (isMounted) {
+          if (result.success && result.data) {
+            const hasMachine = result.data.some(p => (p.ownerAddress || '').toLowerCase() === currentWallet);
+            
+            // 🌟 CƠ CHẾ BYPASS THÔNG MINH CHO NHÀ PHÁT TRIỂN:
+            // Nếu ví sở hữu máy thực tế HOẶC đang chạy thử nghiệm ở localhost thì luôn mở khóa nút Kênh Chủ Máy
+            if (hasMachine || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+              setIsLessor(true);
+            } else {
+              setIsLessor(false);
+            }
+          } else {
+            setIsLessor(window.location.hostname === 'localhost');
+          }
         }
       } catch (error) {
-        setIsLessor(false);
+        console.error("Lỗi đồng bộ quyền chủ máy từ API:", error);
+        if (isMounted) {
+          setIsLessor(window.location.hostname === 'localhost');
+        }
       }
     };
 
     checkOwnership();
+
+    return () => {
+      isMounted = false;
+    };
   }, [currentWallet]);
 
-  // Hàm xử lý khi bấm đổi sang quyền Chủ máy
   const handleGoToLessor = () => {
     onChangeTab('lessor-workspace');
     navigate('/dashboard');
   };
 
-  // Hàm xử lý khi từ Chủ máy đổi quay lại quyền Khách hàng
   const handleGoToRenter = () => {
     onChangeTab('my-rentals');
     navigate('/'); 
@@ -104,12 +113,11 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
 
       <div className="flex items-center gap-4">
         {currentTab !== 'lessor-workspace' ? (
-          // THAY ĐỔI ĐIỀU KIỆN: Dùng biến tự động isLessor thay cho LESSOR_WALLET nhập tay
           isLessor ? (
             <button
               type="button"
               onClick={handleGoToLessor}
-              className="text-xs font-bold text-slate-300 hover:text-emerald-400 bg-slate-950 border border-slate-850 hover:border-emerald-500/30 px-3 py-2 rounded-xl cursor-pointer transition-all shadow-sm"
+              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 rounded-xl cursor-pointer transition-all shadow-sm"
             >
               ⚙️ Kênh Chủ Máy
             </button>
