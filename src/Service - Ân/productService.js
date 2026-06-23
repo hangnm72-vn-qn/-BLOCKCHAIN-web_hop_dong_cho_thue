@@ -14,23 +14,24 @@ export const getProductById = async (id) => {
 
 // Đăng máy chủ mới (Đã đồng bộ dùng instance api + FormData)
 export const createProduct = async (title, description, pricePerHour, ownerAddress, condition, imageFile) => {
-  const formData = new FormData();
-  formData.append('title', title);
-  formData.append('description', description);
-  formData.append('pricePerHour', pricePerHour);
-  formData.append('ownerAddress', ownerAddress);
-  formData.append('condition', condition);
-  
-  // 🌟 Chú ý: Đoạn này hãy để tên trường trùng khớp với backend nhận (ví dụ 'image' hoặc 'imageFile')
-  formData.append('image', imageFile); 
+    const formData = new FormData()
+    formData.append('title', title)
+    formData.append('description', description)
+    formData.append('pricePerHour', pricePerHour)
+    formData.append('depositAmount', 0)
+    formData.append('ownerAddress', ownerAddress)
+    formData.append('condition', condition)
+    if (imageFile) {
+        formData.append('images', imageFile) // Backend đón bằng uploadCloud.array('images', 5)
+    }
 
-  // Dùng trực tiếp instance 'api' để thừa hưởng cấu hình từ file api.js
-  const response = await api.post('/products', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data', 
-    },
-  });
-  return response.data;
+    // Dùng trực tiếp instance 'api' để thừa hưởng cấu hình từ file api.js
+    const response = await api.post('/products', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
 };
 
 // Kích hoạt tài nguyên máy sau khi on-chain rentServer thành công
@@ -65,18 +66,17 @@ export const searchProducts = async (keyword) => {
 
 // Lấy số giây còn lại của phiên thuê (real-time đếm ngược)
 export const getSessionTime = async (productId) => {
-  const response = await api.get(`/session-time/${productId}`);
-  return response.data;
+    const response = await api.get(`/session-time/${productId}`);
+    return response.data;
 };
 
 // Lấy danh sách máy chủ mà 1 ví đã đăng (dành cho Chủ máy)
 export const getProductsByOwner = async (ownerAddress) => {
-  const allProducts = await getAllProducts();
-  return allProducts.filter(p => p.ownerAddress?.toLowerCase() === ownerAddress.toLowerCase());
-};
-
+    const allProducts = await getAllProducts()
+    return allProducts.filter(p => p.ownerAddress?.toLowerCase() === ownerAddress?.toLowerCase())
+}
 // Kiểm tra xem ví này đã từng đăng máy chủ nào chưa
 export const checkIsLessor = async (walletAddress) => {
-  const allProducts = await getAllProducts();
-  return allProducts.some(p => p.ownerAddress?.toLowerCase() === walletAddress.toLowerCase());
+    const allProducts = await getAllProducts();
+    return allProducts.some(p => p.ownerAddress?.toLowerCase() === walletAddress.toLowerCase());
 };

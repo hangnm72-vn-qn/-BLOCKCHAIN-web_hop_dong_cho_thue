@@ -1,8 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserProvider, Contract, parseUnits } from 'ethers';
 import { useNavigate } from 'react-router-dom';
-import { createProduct } from '../Service - Ân/productService'; 
-import { createRentalFactoryContract, SEPOLIA_CHAIN_ID } from '../contracts/rentalFactoryConfig';
+import {
+  createProduct,
+  getSessionTime,
+  getProductsByOwner,
+  updateProductStatus,
+  terminateProduct
+} from '../Service - Ân/productService';
+
+import {
+  createRentalFactoryContract,
+  createSingleContract,
+  SEPOLIA_CHAIN_ID
+} from '../contracts/rentalFactoryConfig';
 
 // Giả lập hoặc import hàm từ dịch vụ của ông (nếu có file riêng thì xóa dòng này)
 const getProductsByOwner = async (wallet) => {
@@ -18,7 +29,7 @@ const getProductsByOwner = async (wallet) => {
   }
 };
 
-function Dashboard({ currentTab, walletAddress }) { 
+function Dashboard({ currentTab, walletAddress }) {
   const navigate = useNavigate();
 
   // Ví hiện tại đang kết nối (Ưu tiên lấy từ localStorage để đồng bộ với Navbar)
@@ -128,7 +139,7 @@ function Dashboard({ currentTab, walletAddress }) {
       setIsLoadingProducts(true);
       const response = await fetch('https://blockchain-web-hop-dong-cho-thue.onrender.com/api/products');
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         const filtered = result.data.filter(p => (p.ownerAddress || '').toLowerCase() === currentWallet);
         setMyProducts(filtered);
@@ -143,23 +154,112 @@ function Dashboard({ currentTab, walletAddress }) {
 
   // ⏳ HOOK ĐẾM NGƯỢC THỜI GIAN THỰC TỪ BACKEND
   useEffect(() => {
-    if (!activeProductId) return;
+    if (!activeProductId) {
+      setTimeLeft(0);
+      setTimerType('none');
+      setShowToast(false);
+      setRenterData((prev) => ({ ...prev, status: 'None' }));
+      return;
+    }
 
     const fetchSessionTime = async () => {
       try {
-        const response = await fetch(`https://blockchain-web-hop-dong-cho-thue.onrender.com/api/session-time/${activeProductId}`);
-        const data = await response.json();
-        if (data && data.success) {
-          setTimeLeft(data.timeLeft);
-          setTimerType(data.timerType);
+        const data = await getSessionTime(activeProductId);
+
+        const apiStatus = data?.status;
+
+        // Backend mới: tách thời gian thử nghiệm và thuê chính thức.
+        const trialTimeLeft = Number(data?.trialTimeLeft ?? 0);
+        const rentalTimeLeft = Number(data?.rentalTimeLeft ?? 0);
+
+        // Backend cũ: một field timeLeft chung.
+        const fallbackTimeLeft = Number(data?.timeLeft ?? 0);
+
+        if ((apiStatus === 'Pending' || apiStatus === 'Testing') && trialTimeLeft > 0) {
+          const displayTimeLeft = trialTimeLeft;
+
+          setTimeLeft(displayTimeLeft);
+          setTimerType('trial');
+
+          setRenterData((prev) => ({
+            ...prev,
+            status: 'Testing',
+          }));
+
+          if (displayTimeLeft <= 60 && displayTimeLeft > 0) {
+            setShowToast(true);
+          } else {
+            setShowToast(false);
+          }
+        } else if (
+          apiStatus === 'Active' ||
+          apiStatus === 'Rented' ||
+          (trialTimeLeft <= 0 && rentalTimeLeft > 0)
+        ) {
+          const displayTimeLeft = rentalTimeLeft > 0 ? rentalTimeLeft : fallbackTimeLeft;
+
+          if (displayTimeLeft <= 0) {
+            clearActiveRentalState();
+            return;
+          }
+
+          setTimeLeft(displayTimeLeft);
+          setTimerType('rental');
+
+          setRenterData((prev) => ({
+            ...prev,
+            status: 'Active',
+          }));
+
+          setShowNegotiation(false);
+          setDiscountOffered(false);
+
+          if (displayTimeLeft <= 900 && displayTimeLeft > 0) {
+            setShowToast(true);
+          } else {
+            setShowToast(false);
+          }
+        } else if (apiStatus === 'Dispute') {
+          const displayTimeLeft =
+            trialTimeLeft > 0
+              ? trialTimeLeft
+              : rentalTimeLeft > 0
+                ? rentalTimeLeft
+                : fallbackTimeLeft;
+
+          setTimeLeft(displayTimeLeft);
+          setTimerType(trialTimeLeft > 0 ? 'trial' : 'rental');
+
+          setRenterData((prev) => ({
+            ...prev,
+            status: 'Dispute',
+          }));
+
+          setLessorData((prev) => ({
+            ...prev,
+            status: 'Dispute',
+          }));
+
+          setShowNegotiation(true);
+        } else if (
+          apiStatus === 'Available' ||
+          apiStatus === 'Completed' ||
+          apiStatus === 'Expired' ||
+          apiStatus === 'Canceled' ||
+          apiStatus === 'Cancelled' ||
+          apiStatus === 'Refunded'
+        ) {
+          clearActiveRentalState();
         }
       } catch (err) {
-        console.error("Lỗi lấy thời gian phiên thuê từ server:", err);
+        console.error('Lỗi lấy thời gian phiên thuê từ server:', err);
       }
     };
 
     fetchSessionTime();
+
     const interval = setInterval(fetchSessionTime, 5000);
+
     return () => clearInterval(interval);
   }, [activeProductId]);
 
@@ -192,7 +292,7 @@ function Dashboard({ currentTab, walletAddress }) {
       const { productId, contractId, packageAddress } = getActiveRentalInfo();
 
       try {
-        await updateProductStatus(productId, 'Active');
+        await updateProductStatus(productId, 'Rented');
       } catch (e) {
         console.error('Lỗi cập nhật backend sang Active:', e);
       }
@@ -358,9 +458,9 @@ function Dashboard({ currentTab, walletAddress }) {
 
       // Lưu trữ dữ liệu về phía backend phục vụ hiển thị chợ máy
       await createProduct(serverForm.title, serverForm.description, serverForm.pricePerHour, serverForm.ownerAddress, serverForm.condition, imageFile);
-      
+
       setSubmitMessage('Thêm máy chủ thành công!');
-      
+
       setTimeout(async () => {
         await fetchLessorProducts();
         navigate('/');
