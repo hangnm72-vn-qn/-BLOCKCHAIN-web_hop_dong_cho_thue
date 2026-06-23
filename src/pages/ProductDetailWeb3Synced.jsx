@@ -208,6 +208,8 @@ function ProductDetail() {
                     let nextId = await single.nextContractId();
                     const newContractId = Number(nextId.toString()) - 1;
                     setContractId(newContractId);
+                    localStorage.setItem('trustrent.activeContractId', String(newContractId));
+                    localStorage.setItem('trustrent.activePackageAddress', packageAddress);
 
                     const renterAddress = await signer.getAddress();
 
