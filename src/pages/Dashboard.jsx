@@ -337,9 +337,9 @@ function Dashboard({ currentTab }) {
   }, [activeProductId]);
 
   // Lấy danh sách máy chủ mà ví hiện tại đã đăng lên chợ.
-  // Navbar của bạn đang dùng tab lessor-workspace, nên điều kiện phải là lessor-workspace.
+  // Navbar của bạn đang dùng tab lessor, nên điều kiện phải là lessor.
   useEffect(() => {
-    if (currentTab !== 'lessor-workspace') return;
+    if (currentTab === 'my-rentals') return;  // Đổi !== thành ===
     if (!currentWallet) return;
 
     const fetchMyServers = async () => {
