@@ -230,10 +230,10 @@ function Dashboard({ currentTab }) {
         // Backend cũ: một field timeLeft chung.
         const fallbackTimeLeft = Number(data?.timeLeft ?? 0);
 
-        if (apiStatus === 'Pending' || apiStatus === 'Testing') {
+        if ((apiStatus === 'Pending' || apiStatus === 'Testing') && trialTimeLeft > 0) {
           // Giai đoạn thử nghiệm 5 phút.
           // Ưu tiên trialTimeLeft; nếu chưa có thì dùng timeLeft.
-          const displayTimeLeft = trialTimeLeft > 0 ? trialTimeLeft : fallbackTimeLeft;
+          const displayTimeLeft = trialTimeLeft;
 
           if (displayTimeLeft <= 0) {
             // Nếu hết 5 phút mà backend chưa chuyển Active thì không tự đổi tiền ở frontend.
@@ -258,7 +258,11 @@ function Dashboard({ currentTab }) {
           } else {
             setShowToast(false);
           }
-        } else if (apiStatus === 'Active') {
+        } else if (
+          apiStatus === 'Active' ||
+          apiStatus === 'Rented' ||
+          (trialTimeLeft <= 0 && rentalTimeLeft > 0)
+        ) {
           // Giai đoạn thuê chính thức.
           // Ưu tiên rentalTimeLeft; nếu chưa có thì dùng timeLeft.
           const displayTimeLeft = rentalTimeLeft > 0 ? rentalTimeLeft : fallbackTimeLeft;
@@ -382,7 +386,7 @@ function Dashboard({ currentTab }) {
       const { productId, contractId, packageAddress } = getActiveRentalInfo();
 
       try {
-        await updateProductStatus(productId, 'Active');
+        await updateProductStatus(productId, 'Rented');
       } catch (e) {
         console.error('Lỗi cập nhật backend sang Active:', e);
       }

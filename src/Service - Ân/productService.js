@@ -21,7 +21,9 @@ export const createProduct = async (title, description, pricePerHour, ownerAddre
     formData.append('depositAmount', 0)
     formData.append('ownerAddress', ownerAddress)
     formData.append('condition', condition)
-    formData.append('images', imageFile) // Đổi từ 'image' thành 'images' theo yêu cầu mới
+    if (imageFile) {
+        formData.append('images', imageFile) // Backend đón bằng uploadCloud.array('images', 5)
+    }
 
     const response = await api.post('/products', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -65,7 +67,8 @@ export const getSessionTime = async (productId) => {
 export const getProductsByOwner = async (ownerAddress) => {
     const allProducts = await getAllProducts()
     return allProducts.filter(p => p.ownerAddress?.toLowerCase() === ownerAddress?.toLowerCase())
-}// Kiểm tra xem ví này đã từng đăng máy chủ nào chưa
+}
+// Kiểm tra xem ví này đã từng đăng máy chủ nào chưa
 export const checkIsLessor = async (walletAddress) => {
     const allProducts = await getAllProducts()
     return allProducts.some(p => p.ownerAddress?.toLowerCase() === walletAddress?.toLowerCase())
