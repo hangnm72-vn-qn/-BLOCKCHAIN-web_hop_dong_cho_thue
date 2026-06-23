@@ -138,10 +138,8 @@ function Dashboard({ currentTab }) {
   };
 
   // Hàm gọi một method trên SingleServerRental/RentalContract.
-  // Dùng cho các nhánh smart contract:
-  // confirmRental     = khách xác nhận OK.
-  // executeDiscount   = đồng ý giảm 20%.
-  // cancelAndRefund   = hủy hợp đồng, hoàn 100%.
+  // Hiện tại chỉ dùng chắc chắn cho confirmRental().
+  // Không gọi executeDiscount/cancelAndRefund nếu ABI chưa có hai hàm đó.
   const callSingleContractMethod = async (methodName) => {
     const { productId, contractId, packageAddress } = getActiveRentalInfo();
 
@@ -457,9 +455,12 @@ function Dashboard({ currentTab }) {
     try {
       setIsResolvingDispute(true);
 
-      await callSingleContractMethod('executeDiscount');
-
       const { productId } = getActiveRentalInfo();
+
+      // Lưu ý:
+      // ABI hiện tại chưa có executeDiscount(), nên không thể chia tiền 80/20 thật trên smart contract.
+      // Phần này tạm xử lý ở frontend/backend để demo luồng thương lượng.
+      // Nếu sau này Hạnh bổ sung hàm chia tiền vào contract, mới gọi smart contract ở đây.
 
       try {
         await terminateProduct(productId);
@@ -475,15 +476,9 @@ function Dashboard({ currentTab }) {
 
       clearActiveRentalState();
 
-      alert('Đã đồng ý giảm 20%. Smart Contract chia tiền 80/20 và máy đã được giải phóng.');
+      alert('Đã đồng ý giảm 20%. Hiện tại đây là luồng demo frontend/backend vì ABI chưa có hàm chia tiền 80/20.');
     } catch (error) {
       console.error('Lỗi đồng ý giảm giá:', error);
-
-      if (error?.code === 4001) {
-        alert('Bạn đã hủy giao dịch trên MetaMask.');
-        return;
-      }
-
       alert(error?.message || 'Không thể xử lý giảm giá. Vui lòng thử lại.');
     } finally {
       setIsResolvingDispute(false);
@@ -496,9 +491,12 @@ function Dashboard({ currentTab }) {
     try {
       setIsResolvingDispute(true);
 
-      await callSingleContractMethod('cancelAndRefund');
-
       const { productId } = getActiveRentalInfo();
+
+      // Lưu ý:
+      // ABI hiện tại chưa có cancelAndRefund(), nên không thể hoàn 100% thật trên smart contract.
+      // Phần này tạm xử lý frontend/backend để demo luồng hủy hợp đồng.
+      // Nếu sau này Hạnh bổ sung hàm hoàn tiền vào contract, mới gọi smart contract ở đây.
 
       try {
         await terminateProduct(productId);
@@ -514,15 +512,9 @@ function Dashboard({ currentTab }) {
 
       clearActiveRentalState();
 
-      alert('Đã hủy hợp đồng. Smart Contract hoàn 100% tiền cho khách và máy quay về Available.');
+      alert('Đã hủy hợp đồng và giải phóng máy. Hiện tại đây là luồng demo frontend/backend vì ABI chưa có hàm hoàn tiền 100%.');
     } catch (error) {
       console.error('Lỗi hủy hợp đồng/hoàn tiền:', error);
-
-      if (error?.code === 4001) {
-        alert('Bạn đã hủy giao dịch trên MetaMask.');
-        return;
-      }
-
       alert(error?.message || 'Không thể hủy hợp đồng. Vui lòng thử lại.');
     } finally {
       setIsResolvingDispute(false);
