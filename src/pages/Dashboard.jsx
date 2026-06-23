@@ -138,8 +138,10 @@ function Dashboard({ currentTab }) {
   };
 
   // Hàm gọi một method trên SingleServerRental/RentalContract.
-  // Hiện tại chỉ dùng chắc chắn cho confirmRental().
-  // Không gọi executeDiscount/cancelAndRefund nếu ABI chưa có hai hàm đó.
+  // Hiện tại dùng cho 3 hàm có trong ABI:
+  // confirmRental   = khách xác nhận máy hoạt động tốt.
+  // acceptDiscount  = khách đồng ý giảm giá 20%.
+  // rejectDiscount  = hủy / từ chối giảm giá.
   const callSingleContractMethod = async (methodName) => {
     const { productId, contractId, packageAddress } = getActiveRentalInfo();
 
@@ -365,16 +367,12 @@ function Dashboard({ currentTab }) {
   // =========================================================
   // 5. KHÁCH BẤM "HOẠT ĐỘNG TỐT"
   // =========================================================
-  // Theo PCCV gọi là confirmServerOK().
-  // Trong code thực tế của nhóm bạn, hàm tương ứng là:
-  // single.confirmRental(contractId)
-  //
   // Luồng đúng:
   // 1. Khách đang trong 5 phút thử nghiệm.
   // 2. Khách bấm Hoạt động tốt.
-  // 3. Smart Contract chuyển tiền đang khóa cho chủ máy.
-  // 4. Smart Contract/Backend chuyển trạng thái sang Active.
-  // 5. Máy chạy tiếp thời gian thuê chính thức do khách chọn.
+  // 3. Smart Contract gọi confirmRental(contractId).
+  // 4. Backend chuyển trạng thái sang Active.
+  // 5. Máy chạy tiếp thời gian thuê chính thức.
   const handleConfirmOK = async () => {
     try {
       setIsConfirming(true);
@@ -383,8 +381,6 @@ function Dashboard({ currentTab }) {
 
       const { productId, contractId, packageAddress } = getActiveRentalInfo();
 
-      // Đồng bộ backend sang Active để lần sau getSessionTime trả Active,
-      // tránh giao diện bị kéo ngược lại Testing sau 5 giây.
       try {
         await updateProductStatus(productId, 'Active');
       } catch (e) {
@@ -416,8 +412,7 @@ function Dashboard({ currentTab }) {
   };
 
   // Khi khách bấm "Báo lỗi".
-  // Quy trình đúng: trạng thái chuyển sang Dispute, mở khung thương lượng.
-  // Nếu nhóm có hàm smart contract báo lỗi thật thì gắn thêm vào đây.
+  // Trạng thái chuyển sang Dispute, mở khung thương lượng.
   const handleReportError = async () => {
     try {
       setRenterData((prev) => ({ ...prev, status: 'Dispute' }));
@@ -441,7 +436,7 @@ function Dashboard({ currentTab }) {
   };
 
   // Chủ máy bấm "Đề xuất giảm giá 20%".
-  // Quy trình đúng: chủ máy đề xuất, sau đó khách phải bấm đồng ý thì mới chia tiền 80/20.
+  // Chủ máy chỉ đề xuất, khách phải đồng ý thì contract mới xử lý acceptDiscount.
   const handleProposeDiscount = () => {
     setDiscountOffered(true);
     setShowNegotiation(true);
@@ -449,18 +444,12 @@ function Dashboard({ currentTab }) {
   };
 
   // Khách đồng ý giảm 20%.
-  // Smart Contract sẽ chia tiền: 80% cho chủ máy, 20% hoàn lại khách.
-  // Sau đó backend thu hồi/xóa máy và máy quay về Available.
+  // Gọi đúng hàm acceptDiscount(contractId) có trong ABI của Hạnh.
   const handleAcceptDiscount = async () => {
     try {
       setIsResolvingDispute(true);
 
-      const { productId } = getActiveRentalInfo();
-
-      // Lưu ý:
-      // ABI hiện tại chưa có executeDiscount(), nên không thể chia tiền 80/20 thật trên smart contract.
-      // Phần này tạm xử lý ở frontend/backend để demo luồng thương lượng.
-      // Nếu sau này Hạnh bổ sung hàm chia tiền vào contract, mới gọi smart contract ở đây.
+      const { productId } = await callSingleContractMethod('acceptDiscount');
 
       try {
         await terminateProduct(productId);
@@ -476,27 +465,28 @@ function Dashboard({ currentTab }) {
 
       clearActiveRentalState();
 
-      alert('Đã đồng ý giảm 20%. Hiện tại đây là luồng demo frontend/backend vì ABI chưa có hàm chia tiền 80/20.');
+      alert('Đã đồng ý giảm 20%. Smart Contract đã xử lý acceptDiscount và máy đã được giải phóng.');
     } catch (error) {
       console.error('Lỗi đồng ý giảm giá:', error);
+
+      if (error?.code === 4001) {
+        alert('Bạn đã hủy giao dịch trên MetaMask.');
+        return;
+      }
+
       alert(error?.message || 'Không thể xử lý giảm giá. Vui lòng thử lại.');
     } finally {
       setIsResolvingDispute(false);
     }
   };
 
-  // Hủy hợp đồng/hoàn tiền 100%.
-  // Dùng khi hai bên không đạt được thỏa thuận hoặc người thuê/chủ máy chọn hủy.
+  // Hủy hợp đồng / không đồng ý giảm giá.
+  // Gọi đúng hàm rejectDiscount(contractId) có trong ABI của Hạnh.
   const handleCancelAndRefund = async () => {
     try {
       setIsResolvingDispute(true);
 
-      const { productId } = getActiveRentalInfo();
-
-      // Lưu ý:
-      // ABI hiện tại chưa có cancelAndRefund(), nên không thể hoàn 100% thật trên smart contract.
-      // Phần này tạm xử lý frontend/backend để demo luồng hủy hợp đồng.
-      // Nếu sau này Hạnh bổ sung hàm hoàn tiền vào contract, mới gọi smart contract ở đây.
+      const { productId } = await callSingleContractMethod('rejectDiscount');
 
       try {
         await terminateProduct(productId);
@@ -512,14 +502,21 @@ function Dashboard({ currentTab }) {
 
       clearActiveRentalState();
 
-      alert('Đã hủy hợp đồng và giải phóng máy. Hiện tại đây là luồng demo frontend/backend vì ABI chưa có hàm hoàn tiền 100%.');
+      alert('Đã hủy hợp đồng. Smart Contract đã xử lý rejectDiscount và máy quay về Available.');
     } catch (error) {
       console.error('Lỗi hủy hợp đồng/hoàn tiền:', error);
+
+      if (error?.code === 4001) {
+        alert('Bạn đã hủy giao dịch trên MetaMask.');
+        return;
+      }
+
       alert(error?.message || 'Không thể hủy hợp đồng. Vui lòng thử lại.');
     } finally {
       setIsResolvingDispute(false);
     }
   };
+
 
   const handleServerFormChange = (field, value) => {
     setServerForm((prev) => ({ ...prev, [field]: value }));
