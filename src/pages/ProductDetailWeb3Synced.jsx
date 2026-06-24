@@ -29,11 +29,11 @@ function ProductDetail() {
   }, [id])
 
   if (loading) return <p className="text-slate-400 text-center mt-10">Đang tải thông tin máy chủ...</p>
-  if (!product) return <p className="text-slate-400 text-center mt-10">Không tìm thấy thông tin máy chủ.</p>
+  if (!product) return <p className="text-slate-400 text-center mt-10"> Không tìm thấy thông tin máy chủ. </p>
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-10 text-left mt-4">
-      {/* CỘT TRÁI: Ảnh cấu hình / Minh họa VPS */}
+      { /* CỘT TRÁI: Ảnh cấu hình / Minh họa VPS */ }
       <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl h-[500px]">
         <img
           src={product.images[0]}
@@ -67,31 +67,31 @@ function ProductDetail() {
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800/60">
                 <div className="flex items-center gap-2">
-                  <span className="text-base">⏰</span>
+                  <span className="text-base"> ⏰ </span>
                   <span className="text-xs font-medium text-slate-400">10 Phút thử nghiệm đầu tiên</span>
                 </div>
                 <span className="inline-flex items-center text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md sm:text-right">
-                  Được quyền hủy, hoàn cọc 100%
+                  Được quyền kiểm tra & hủy ngay
                 </span>
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800/60">
                 <div className="flex items-center gap-2">
-                  <span className="text-base">❌</span>
-                  <span className="text-xs font-medium text-slate-400">Chủ máy ngắt kết nối / Sập nguồn ngầm</span>
+                  <span className="text-base"> 💸 </span>
+                  <span className="text-xs font-medium text-slate-400">Cơ chế giao dịch</span>
                 </div>
-                <span className="inline-flex items-center text-xs font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-md sm:text-right">
-                  Hoàn 100% tiền cọc cho Người thuê
+                <span className="inline-flex items-center text-xs font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-md sm:text-right">
+                  Token lưu tạm tại Smart Contract
                 </span>
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-base">🔥</span>
-                  <span className="text-xs font-medium text-slate-400">Sử dụng quá thời gian đã thuê</span>
+                  <span className="text-base">⏳</span>
+                  <span className="text-xs font-medium text-slate-400">Trường hợp quá 10 phút</span>
                 </div>
                 <span className="inline-flex items-center text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-md sm:text-right">
-                  Google Cloud tự động xóa máy vĩnh viễn
+                  Tự động quyết toán giao dịch cho Chủ máy
                 </span>
               </div>
             </div>
@@ -101,9 +101,9 @@ function ProductDetail() {
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5 shadow-xl">
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Số giờ cần thuê (Tối thiểu 1 giờ)"
+              label= "Số giờ cần thuê (Tối thiểu 1 giờ)"
               type="number"
-              placeholder="Nhập số giờ... (Ví dụ: 5)"
+              placeholder= "Nhập số giờ... (Ví dụ: 5)"
               min="1"
               value={rentHours}
               onChange={(e) => setRentHours(e.target.value)}
@@ -142,7 +142,7 @@ function ProductDetail() {
                     const provider = new BrowserProvider(window.ethereum);
                     const network = await provider.getNetwork();
                     if (network.chainId !== SEPOLIA_CHAIN_ID) {
-                      setMessage('Vui lòng chuyển MetaMask sang mạng Sepolia.');
+                      setMessage( 'Vui lòng chuyển MetaMask sang mạng Sepolia.' );
                       return;
                     }
 
@@ -168,7 +168,7 @@ function ProductDetail() {
 
                     const totalPrice = Number(product.pricePerHour) * Number(rentHours);
                     if (totalPrice <= 0) {
-                      setMessage('Số giờ thuê không hợp lệ.');
+                      setMessage( 'Số giờ thuê không hợp lệ.' );
                       return;
                     }
 
@@ -191,7 +191,7 @@ function ProductDetail() {
                     }
 
                     if (!packageAddress) {
-                      setMessage('Không tìm thấy contract gói máy trên blockchain. Vui lòng cấu hình contractAddress trong backend.');
+                      setMessage( 'Không tìm thấy contract gói máy trên blockchain. Vui lòng cấu hình contractAddress trong backend.' );
                       return;
                     }
 
@@ -202,7 +202,7 @@ function ProductDetail() {
                     await approveTx.wait();
 
                     const rentTx = await single.rentServer(Number(rentHours));
-                    setMessage('Gửi lệnh thuê, chờ xử lý trên chain...');
+                    setMessage( 'Gửi lệnh thuê, phí sẽ được lưu giữ tại Smart Contract...' );
                     await rentTx.wait();
 
                     let nextId = await single.nextContractId();
@@ -213,7 +213,6 @@ function ProductDetail() {
 
                     const renterAddress = await signer.getAddress();
 
-                    // ✅ ĐÃ SỬA: Đọc phẳng trực tiếp dữ liệu từ Backend trả về
                     try {
                       const prov = await provisionProduct(product._id, renterAddress);
                       if (prov && prov.success) {
@@ -221,18 +220,18 @@ function ProductDetail() {
                         localStorage.setItem('trustrent.activeProductId', product._id);
                       }
                     } catch (e) {
-                      console.error("Lỗi gọi API Provision:", e);
+                      console.error( "Lỗi gọi API Provision:" , e);
                     }
-                    setMessage('Thuê thành công. ContractId: ' + newContractId);
+                    setMessage('Đã thanh toán phí và mở phiên thử nghiệm thành công! ContractId: ' + newContractId);
                   } catch (err) {
                     console.error(err);
-                    setMessage(err?.message || 'Lỗi khi thuê máy.');
+                    setMessage(err?.message ||  'Lỗi khi thuê máy.' );
                   } finally {
                     setIsProcessing(false);
                   }
                 }}
               >
-                {isProcessing ? 'Đang xử lý...' : `⚡ Thuê Ngay (Khóa Cọc ${product.depositAmount} Token)`}
+                {isProcessing ? 'Đang xử lý...' : '⚡ Thuê Ngay'}
               </Button>
             ) : (
               <Button variant="primary" className="flex-[2] font-bold text-base bg-slate-600 cursor-not-allowed" disabled>
@@ -242,160 +241,123 @@ function ProductDetail() {
           </div>
 
           <p className="text-[11px] text-slate-500 text-center italic">
-            *Bấm Thuê Ngay sẽ kích hoạt ví MetaMask để thực hiện khóa Token đặt cọc vào Hợp đồng.
+            *Bấm Thuê Ngay sẽ kích hoạt ví MetaMask để thực hiện chuyển Token chi phí thuê tạm tính vào Hợp đồng trung gian.
           </p>
           {message && (
             <p className={`text-xs ${message.includes('thành công') ? 'text-emerald-400' : 'text-rose-400'}`}>{message}</p>
           )}
 
-          {/* ✅ ĐÃ SỬA: Hiển thị giao diện IP phẳng theo đúng yêu cầu mới của Ân */}
           {credentials && (
             <div className="mt-3 bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm">
               <h4 className="text-xs font-bold text-slate-300 mb-2">Thông tin bàn giao VPS</h4>
               <div className="text-xs space-y-1">
-                <div className="text-emerald-400 font-medium">✨ {credentials.message}</div>
+                <div className="text-emerald-400 font-medium"> ✨ {credentials.message}</div>
                 <div className="mt-2">Địa chỉ IP kết nối: <span className="font-mono text-blue-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">{credentials.ipAddress}</span></div>
               </div>
             </div>
           )}
 
           {/* ==========================================
-              🔥 KHU VỰC ĐÃ VÁ LỖI PHÂN NHÁNH ĐỒNG BỘ ĐỒ ÁN 
-             ========================================== */}
+            🔥 KHU VỰC QUY TRÌNH THỬ NGHIỆM ĐỒNG BỘ ĐỒ ÁN CHỐT
+          ========================================== */}
           {contractId && (
-            <div className="mt-3 flex gap-2">
-              {/* NHÁNH 2: Khách dùng mượt mà bấm OK -> Kích hoạt thuê chính thức */}
-              <Button
-                variant="secondary"
-                className="flex-1 bg-emerald-950/40 text-emerald-400 border border-emerald-900/60 hover:bg-emerald-900/40"
-                onClick={async () => {
-                  try {
-                    setIsProcessing(true);
-                    setMessage('Gửi xác nhận OK lên chain...');
-                    const provider = new BrowserProvider(window.ethereum);
-                    const signer = await provider.getSigner();
-                    const factory = createRentalFactoryContract(signer);
-
-                    let packageAddress = product.contractAddress || '';
-                    if (!packageAddress) {
-                      const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
-                      const perHourOnChain = parseUnits(String(product.pricePerHour), 18);
-                      for (let i = 0; i < packageIds.length; i++) {
-                        const pkgId = packageIds[i];
-                        const info = await factory.getPackageInfo(pkgId);
-                        try {
-                          if (info.pricePerHour.toString() === perHourOnChain.toString()) {
-                            packageAddress = await factory.getPackageAddress(pkgId);
-                            break;
-                          }
-                        } catch (e) { }
-                      }
-                    }
-
-                    const single = createSingleContract(packageAddress, signer);
-                    const tx = await single.confirmRental(contractId);
-                    await tx.wait();
-                    setMessage('Xác nhận OK đã được ghi nhận trên chain.');
-
-                    // CHUẨN HOÁ: Chuyển máy sang trạng thái Active chạy chính thức
-                    try { await updateProductStatus(product._id, 'Active'); } catch (e) { }
-                  } catch (e) {
-                    console.error(e);
-                    setMessage('Lỗi khi xác nhận OK: ' + (e?.message || ''));
-                  } finally { setIsProcessing(false); }
-                }}
-              >
-                Xác nhận OK
-              </Button>
-
-              {/* NHÁNH 1 (PHẦN A): Chấp nhận giảm giá khi có sự cố nhỏ */}
-              <Button
-                variant="secondary"
-                className="flex-1"
-                onClick={async () => {
-                  try {
-                    setIsProcessing(true);
-                    setMessage('Gửi lệnh chấp nhận giảm giá...');
-                    const provider = new BrowserProvider(window.ethereum);
-                    const signer = await provider.getSigner();
-                    const factory = createRentalFactoryContract(signer);
-                    let packageAddress = product.contractAddress || '';
-                    if (!packageAddress) {
-                      const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
-                      for (let i = 0; i < packageIds.length; i++) {
-                        const pkgId = packageIds[i];
-                        const info = await factory.getPackageInfo(pkgId);
-                        try {
-                          if (info.pricePerHour.toString() === parseUnits(String(product.pricePerHour), 18).toString()) {
-                            packageAddress = await factory.getPackageAddress(pkgId);
-                            break;
-                          }
-                        } catch (e) { }
-                      }
-                    }
-                    const single = createSingleContract(packageAddress, signer);
-                    const tx = await single.acceptDiscount(contractId);
-                    await tx.wait();
-                    setMessage('Đã chấp nhận giảm giá, máy hoạt động tiếp.');
-
-                    // ĐỒNG BỘ CHUẨN: Chuyển trạng thái máy sang chạy chính thức luôn
-                    try { await updateProductStatus(product._id, 'Active'); } catch (e) { }
-                  } catch (e) {
-                    console.error(e);
-                    setMessage('Lỗi khi chấp nhận giảm giá: ' + (e?.message || ''));
-                  } finally { setIsProcessing(false); }
-                }}
-              >
-                Đồng ý giảm giá 20%
-              </Button>
-
-              {/* NHÁNH 1 (PHẦN B) & NHÁNH 3: Khách không thuê nữa, hủy hoàn tiền / Giải phóng tài nguyên */}
-              <Button
-                variant="secondary"
-                className="flex-1 bg-rose-950/40 text-rose-400 border border-rose-900/60 hover:bg-rose-900/40"
-                onClick={async () => {
-                  try {
-                    setIsProcessing(true);
-                    setMessage('Gửi lệnh hoàn tiền (reject) lên chain...');
-                    const provider = new BrowserProvider(window.ethereum);
-                    const signer = await provider.getSigner();
-                    const factory = createRentalFactoryContract(signer);
-                    let packageAddress = product.contractAddress || '';
-                    if (!packageAddress) {
-                      const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
-                      for (let i = 0; i < packageIds.length; i++) {
-                        const pkgId = packageIds[i];
-                        const info = await factory.getPackageInfo(pkgId);
-                        try {
-                          if (info.pricePerHour.toString() === parseUnits(String(product.pricePerHour), 18).toString()) {
-                            packageAddress = await factory.getPackageAddress(pkgId);
-                            break;
-                          }
-                        } catch (e) { }
-                      }
-                    }
-                    const single = createSingleContract(packageAddress, signer);
-                    const tx = await single.rejectDiscount(contractId);
-                    await tx.wait();
-                    setMessage('Đã hủy & hoàn tiền 100% cho khách.');
-
-                    // 🔥 ĐÃ VÁ LỖI: Sử dụng terminateProduct của Ân để xóa hẳn ví renterAddress khỏi DB
+            <div className="mt-3 space-y-2">
+              <div className="text-[11px] text-amber-500 bg-amber-500/5 border border-amber-500/10 p-2.5 rounded-lg text-center font-medium">
+                ⏱️ Bạn đang trong 10 phút thử nghiệm. Vui lòng kiểm tra IP và phản hồi dưới đây:
+              </div>
+              
+              <div className="flex gap-3">
+                { /* LỰA CHỌN 1: Khách dùng mượt mà bấm Đồng ý -> Chốt hợp đồng, tiền về ví chủ máy */ }
+                <Button
+                  variant="secondary"
+                  className="flex-1 bg-emerald-950/40 text-emerald-400 border border-emerald-900/60 hover:bg-emerald-900/40 font-bold"
+                  onClick={async () => {
                     try {
-                      await terminateProduct(product._id);
-                      localStorage.removeItem('trustrent.activeProductId'); // Thêm dòng này
-                      // Refresh lại trang để cập nhật giao diện máy trống
-                      window.location.reload();
+                      setIsProcessing(true);
+                      setMessage( 'Gửi xác nhận nghiệm thu lên chain...' );
+                      const provider = new BrowserProvider(window.ethereum);
+                      const signer = await provider.getSigner();
+                      const factory = createRentalFactoryContract(signer);
+
+                      let packageAddress = product.contractAddress || '';
+                      if (!packageAddress) {
+                        const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
+                        const perHourOnChain = parseUnits(String(product.pricePerHour), 18);
+                        for (let i = 0; i < packageIds.length; i++) {
+                          const pkgId = packageIds[i];
+                          const info = await factory.getPackageInfo(pkgId);
+                          try {
+                            if (info.pricePerHour.toString() === perHourOnChain.toString()) {
+                              packageAddress = await factory.getPackageAddress(pkgId);
+                              break;
+                            }
+                          } catch (e) { }
+                        }
+                      }
+
+                      const single = createSingleContract(packageAddress, signer);
+                      const tx = await single.confirmRental(contractId);
+                      await tx.wait();
+                      setMessage('Xác nhận hoàn tất! Token đã chuyển từ Contract về ví Chủ máy.');
+
+                      // CHUẨN HOÁ: Chuyển máy sang trạng thái Active chạy chính thức
+                      try { await updateProductStatus(product._id, 'Active'); } catch (e) { }
                     } catch (e) {
-                      console.error("Lỗi đồng bộ giải phóng ví:", e);
-                    }
-                  } catch (e) {
-                    console.error(e);
-                    setMessage('Lỗi khi huỷ & hoàn tiền: ' + (e?.message || ''));
-                  } finally { setIsProcessing(false); }
-                }}
-              >
-                Hủy và hoàn tiền
-              </Button>
+                      console.error(e);
+                      setMessage( 'Lỗi khi đồng ý: '  + (e?.message || ''));
+                    } finally { setIsProcessing(false); }
+                  }}
+                >
+                  🟢 Đồng ý
+                </Button>
+
+                { /* LỰA CHỌN 2: Khách không thuê nữa -> Hủy giao dịch, hoàn trả 100% token, giải phóng tài nguyên */ }
+                <Button
+                  variant="secondary"
+                  className="flex-1 bg-rose-950/40 text-rose-400 border border-rose-900/60 hover:bg-rose-900/40 font-bold"
+                  onClick={async () => {
+                    try {
+                      setIsProcessing(true);
+                      setMessage( 'Gửi lệnh hủy và rút token hoàn tiền lên chain...' );
+                      const provider = new BrowserProvider(window.ethereum);
+                      const signer = await provider.getSigner();
+                      const factory = createRentalFactoryContract(signer);
+                      let packageAddress = product.contractAddress || '';
+                      if (!packageAddress) {
+                        const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
+                        for (let i = 0; i < packageIds.length; i++) {
+                          const pkgId = packageIds[i];
+                          const info = await factory.getPackageInfo(pkgId);
+                          try {
+                            if (info.pricePerHour.toString() === parseUnits(String(product.pricePerHour), 18).toString()) {
+                              packageAddress = await factory.getPackageAddress(pkgId);
+                              break;
+                            }
+                          } catch (e) { }
+                        }
+                      }
+                      const single = createSingleContract(packageAddress, signer);
+                      const tx = await single.rejectDiscount(contractId);
+                      await tx.wait();
+                      setMessage('Đã hủy & hoàn trả 100% tiền về ví của bạn thành công.');
+
+                      // Sử dụng terminateProduct để xóa hẳn thông tin thuê, giải phóng máy trống trên DB
+                      try {
+                        await terminateProduct(product._id);
+                        localStorage.removeItem('trustrent.activeProductId');
+                        window.location.reload();
+                      } catch (e) {
+                        console.error("Lỗi đồng bộ giải phóng ví:", e);
+                      }
+                    } catch (e) {
+                      console.error(e);
+                      setMessage( 'Lỗi khi hủy bỏ: '  + (e?.message || ''));
+                    } finally { setIsProcessing(false); }
+                  }}
+                >
+                  🔴 Hủy bỏ
+                </Button>
+              </div>
             </div>
           )}
         </div>

@@ -27,7 +27,7 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
           if (result.success && result.data) {
             const hasMachine = result.data.some(p => (p.ownerAddress || '').toLowerCase() === currentWallet);
             
-            // 🌟 CƠ CHẾ BYPASS THÔNG MINH CHO NHÀ PHÁT TRIỂN:
+            // 🌟 CƠ CHẾ BYPASS THÔNG MINH:
             // Nếu ví sở hữu máy thực tế HOẶC đang chạy thử nghiệm ở localhost thì luôn mở khóa nút Kênh Chủ Máy
             if (hasMachine || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
               setIsLessor(true);
@@ -63,26 +63,12 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
     navigate('/'); 
   };
 
-  const handleLogoClick = () => {
-    if (currentTab === 'lessor-workspace') {
-      const isConfirm = window.confirm(
-        "Bạn đang ở Không gian Chủ máy. Bạn có chắc chắn muốn rời khỏi trình quản trị để quay về Trang chủ dành cho Khách hàng?"
-      );
-      if (isConfirm) {
-        onChangeTab('my-rentals'); 
-        navigate('/');             
-      }
-    } else {
-      navigate('/');
-    }
-  };
-
   return (
     <nav className="flex justify-between items-center p-4 bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-50">
       <div className="flex items-center gap-8">
+        {/* ĐÃ SỬA: Bỏ onClick={handleLogoClick}, đổi cursor-pointer sang cursor-default và xóa hiệu ứng hover */}
         <div 
-          onClick={handleLogoClick}
-          className="font-bold text-xl flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity select-none"
+          className="font-bold text-xl flex items-center gap-2 cursor-default select-none"
         >
           <span>🛡️</span> TrustRent
         </div>
