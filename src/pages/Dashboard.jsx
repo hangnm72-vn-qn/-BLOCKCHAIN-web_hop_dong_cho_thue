@@ -314,6 +314,7 @@ function Dashboard({ currentTab, walletAddress }) {
 
   // Chủ máy bấm "Xác thực & Thêm máy lên Trang chủ".
   const handleCreateServer = async () => {
+    console.log("📸 File ảnh hiện tại trong State trước khi gửi:", imageFile);
     if (!serverForm.title || !serverForm.pricePerHour || !serverForm.ownerAddress || !imageFile) {
       setSubmitMessage('Vui lòng nhập đủ tên gói, giá thuê, địa chỉ ví và ảnh đại diện.');
       return;
@@ -356,15 +357,14 @@ function Dashboard({ currentTab, walletAddress }) {
       setSubmitMessage('Đã gửi giao dịch lên smart contract, đang chờ xác nhận...');
       await tx.wait();
 
-      // Lưu trữ dữ liệu về phía backend phục vụ hiển thị chợ máy
-// 🔥 SỬA DÒNG NÀY ĐỂ TRUYỀN ĐÚNG THỨ TỰ VÀ ĐỦ CÁC TRƯỜNG CHUẨN FORM DATA
-    await createProduct(
-    serverForm.title,
-    serverForm.pricePerHour,
-    serverForm.ownerAddress,
-    imageFile,
-    serverForm.description, // Đẩy description và condition xuống cuối
-    serverForm.condition
+// 🔥 SỬA LẠI THỨ TỰ CÁC BIẾN CHO ĐÚNG VỚI HÀM TRONG PRODUCTSERVICE:
+await createProduct(
+  serverForm.title,          // 1. title
+  serverForm.pricePerHour,   // 2. pricePerHour
+  serverForm.ownerAddress,   // 3. ownerAddress
+  imageFile,                 // 4. imageFile (Phải nằm ở vị trí thứ 4)
+  serverForm.description,    // 5. description
+  serverForm.condition       // 6. condition
 );      
       setSubmitMessage('Thêm máy chủ thành công!');
       
