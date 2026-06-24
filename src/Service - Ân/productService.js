@@ -26,11 +26,7 @@ export const createProduct = async (title, description, pricePerHour, ownerAddre
     }
 
     // Dùng trực tiếp instance 'api' để thừa hưởng cấu hình từ file api.js
-    const response = await api.post('/products', formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data',
-        },
-    });
+    const response = await api.post('/products', formData);
     return response.data;
 };
 

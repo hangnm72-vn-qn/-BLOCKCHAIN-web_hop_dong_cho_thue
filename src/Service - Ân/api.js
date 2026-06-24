@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const api = axios.create({
 // Tự động lấy link online nếu có, nếu không có thì tự quay về cổng 5000 local
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api', 
+  baseURL: 'https://blockchain-web-hop-dong-cho-thue.onrender.com/api', 
 });
 
 api.interceptors.request.use((config) => {

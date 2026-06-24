@@ -15,20 +15,6 @@ import {
   SEPOLIA_CHAIN_ID
 } from '../contracts/rentalFactoryConfig';
 
-// Giả lập hoặc import hàm từ dịch vụ của ông (nếu có file riêng thì xóa dòng này)
-const getProductsByOwner = async (wallet) => {
-  try {
-    const response = await fetch(`https://blockchain-web-hop-dong-cho-thue.onrender.com/api/products`);
-    const result = await response.json();
-    if (result.success && result.data) {
-      return result.data.filter(p => (p.ownerAddress || '').toLowerCase() === wallet.toLowerCase());
-    }
-    return [];
-  } catch (err) {
-    return [];
-  }
-};
-
 function Dashboard({ currentTab, walletAddress }) {
   const navigate = useNavigate();
 
@@ -341,7 +327,7 @@ function Dashboard({ currentTab, walletAddress }) {
   const handleProposeDiscount = () => {
     setDiscountOffered(true);
     setShowNegotiation(true);
-    alert('Chủ máy đã đề xuất giảm giá 20%. Vui lòng đợi khách thuê đồng ý.');
+    alert('Đã đề xuất giảm giá 20%. Vui lòng đợi khách thuê đồng ý.');
   };
 
   // Khách đồng ý giảm 20%.
@@ -806,7 +792,7 @@ function Dashboard({ currentTab, walletAddress }) {
                     </h3>
 
                     <p className="text-[11px] text-slate-400 text-left leading-relaxed">
-                      Danh sách máy chủ bạn đã đăng lên chợ:
+                      Danh sách máy chủ bạn đã đăng lên:
                     </p>
 
                     <div className="flex flex-col gap-3 max-h-[220px] overflow-y-auto pr-1">
@@ -823,7 +809,7 @@ function Dashboard({ currentTab, walletAddress }) {
                           </div>
                         </div>
                       ) : (
-                        myServers.map((server) => {
+                        ((server) => {
                           const isAvailable = server.status === 'Available';
 
                           return (
