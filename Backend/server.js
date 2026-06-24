@@ -139,19 +139,22 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-// 2. API POST Đăng máy chủ mới - PHIÊN BẢN SIÊU CẤP CHỐNG SẬP (BẤM LÀ ĐĂNG ĐƯỢC NGAY)
+// 2. API POST Đăng máy chủ mới - PHIÊN BẢN SIÊU CẤP CHỐNG SẬP + CÓ LOG BẮT BỆNH CLOUDINARY
 app.post('/api/products', (req, res, next) => {
-  // Bọc Multer Cloudinary vào trong để nếu lỗi ảnh thì tự bỏ qua, không làm sập server
+  // 🔥 Chạy Multer Cloudinary một cách an toàn
   uploadCloud.array('images', 5)(req, res, function (err) {
     if (err) {
-      console.log("⚠️ Cảnh báo: Lỗi upload ảnh lên Cloudinary, tự động chuyển sang ảnh dự phòng.", err.message);
+      // Hiện nguyên văn lỗi từ Cloudinary/Multer ra Terminal để admin xem
+      console.log("⚠️ LỖI UPLOAD CLOUDINARY CHI TIẾT TẠI ĐÂY NÈ ÔNG CHÁU ƠI:", err);
     }
+    // Gặp lỗi hay không vẫn cho đi tiếp tới hàm lưu database để chống sập ứng dụng
     next();
   });
 }, async (req, res) => {
   try {
-    // Log thử dữ liệu Frontend gửi lên để kiểm tra trong Terminal
-    console.log("📩 Dữ liệu nhận từ Frontend:", req.body);
+    // Log thử dữ liệu text nhận từ Frontend
+    console.log("📩 Dữ liệu nhận từ req.body:", req.body);
+    console.log("📸 Danh sách file nhận từ req.files:", req.files);
 
     const { title, pricePerHour, ownerAddress } = req.body;
     
@@ -163,10 +166,10 @@ app.post('/api/products', (req, res, next) => {
     }
 
     let imageUrls = [];
-    // Nếu có file ảnh được tải lên thành công qua Multer
+    // Nếu có file ảnh được tải lên thành công qua Multer Cloudinary
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
-        imageUrls.push(file.path);
+        imageUrls.push(file.path); // Lấy link ảnh từ Cloudinary trả về
       });
     } else {
       // Ảnh mặc định cấu hình đẹp mắt từ Unsplash nếu không upload được file
@@ -180,11 +183,11 @@ app.post('/api/products', (req, res, next) => {
       condition: req.body.condition || "Uptime SLA 99.99% - Băng thông 1Gbps không giới hạn",
       pricePerHour: Number(pricePerHour),
       depositAmount: Number(req.body.depositAmount || 0),
-      ownerAddress: ownerAddress.trim().toLowerCase(), // Triệt tiêu hoàn toàn lỗi Checksum viết hoa/thường
+      ownerAddress: ownerAddress.trim().toLowerCase(),
       renterAddress: "",
       status: "Available",
       images: imageUrls,
-      rentalDuration: Number(req.body.rentalDuration || 3600) // Thời gian thuê mặc định của nhóm 2
+      rentalDuration: Number(req.body.rentalDuration || 3600)
     });
 
     await newProduct.save();

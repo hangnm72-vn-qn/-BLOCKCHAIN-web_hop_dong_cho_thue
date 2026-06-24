@@ -19,17 +19,19 @@ export const createProduct = async (title, pricePerHour, ownerAddress, imageFile
     formData.append('title', title);
     formData.append('pricePerHour', pricePerHour);
     formData.append('ownerAddress', ownerAddress);
-    
-    // Đổ dữ liệu động người dùng nhập từ Form vào thay vì dùng text mặc định cứng
     formData.append('description', description || "Máy chủ cấu hình cao phục vụ AI và ảo hóa.");
     formData.append('condition', condition || "Uptime SLA 99.99% - Băng thông 1Gbps không giới hạn");
-    formData.append('depositAmount', 0); // Giữ nguyên mặc định bằng 0 của nhóm
+    formData.append('depositAmount', 0); 
 
-    // Key 'images' khớp 100% với uploadCloud.array('images', 5) ở Backend
-    if (imageFile) {
+    // 🔥 KIỂM TRA CHÍNH XÁC ĐỐI TƯỢNG FILE TRƯỚC KHI GỬI
+    if (imageFile && imageFile instanceof File) {
+      console.log("✈️ FormData chuẩn bị gửi file đi:", imageFile.name);
       formData.append('images', imageFile); 
+    } else {
+      console.error("⚠️ Cảnh báo nguy hiểm: Biến imageFile truyền vào hàm không phải là một đối tượng File hợp lệ!", imageFile);
     }
 
+    // Xem log trong tab Network xem FormData có 'images' chưa
     const response = await api.post('/products', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
