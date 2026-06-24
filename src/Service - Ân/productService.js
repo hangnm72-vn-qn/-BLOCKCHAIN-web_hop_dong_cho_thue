@@ -12,22 +12,37 @@ export const getProductById = async (id) => {
     return response.data.data;
 };
 
-// Đăng máy chủ mới (Đã đồng bộ dùng instance api + FormData)
-export const createProduct = async (title, description, pricePerHour, ownerAddress, condition, imageFile) => {
-    const formData = new FormData()
-    formData.append('title', title)
-    formData.append('description', description)
-    formData.append('pricePerHour', pricePerHour)
-    formData.append('depositAmount', 0)
-    formData.append('ownerAddress', ownerAddress)
-    formData.append('condition', condition)
-    if (imageFile) {
-        formData.append('images', imageFile) // Backend đón bằng uploadCloud.array('images', 5)
+// Nhận đầy đủ 6 tham số truyền sang từ Dashboard.jsx
+export const createProduct = async (title, pricePerHour, ownerAddress, imageFile, description, condition) => {
+  try {
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('pricePerHour', pricePerHour);
+    formData.append('ownerAddress', ownerAddress);
+    formData.append('description', description || "Máy chủ cấu hình cao phục vụ AI và ảo hóa.");
+    formData.append('condition', condition || "Uptime SLA 99.99% - Băng thông 1Gbps không giới hạn");
+    formData.append('depositAmount', 0); 
+
+    // 🔥 KIỂM TRA CHÍNH XÁC ĐỐI TƯỢNG FILE TRƯỚC KHI GỬI
+    if (imageFile && imageFile instanceof File) {
+      console.log("✈️ FormData chuẩn bị gửi file đi:", imageFile.name);
+      formData.append('images', imageFile); 
+    } else {
+      console.error("⚠️ Cảnh báo nguy hiểm: Biến imageFile truyền vào hàm không phải là một đối tượng File hợp lệ!", imageFile);
     }
 
-    // Dùng trực tiếp instance 'api' để thừa hưởng cấu hình từ file api.js
-    const response = await api.post('/products', formData);
+    // Xem log trong tab Network xem FormData có 'images' chưa
+    const response = await api.post('/products', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
     return response.data;
+  } catch (error) {
+    console.error("Lỗi gọi API createProduct:", error);
+    throw error;
+  }
 };
 
 // Kích hoạt tài nguyên máy sau khi on-chain rentServer thành công

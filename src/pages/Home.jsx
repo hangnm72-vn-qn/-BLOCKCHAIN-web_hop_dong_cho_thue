@@ -42,12 +42,17 @@ function Home({ walletAddress }) {
       {/* Khu vực Tìm kiếm & Bộ lọc nhanh */}
       <div className="flex flex-col md:flex-row gap-4 items-end justify-between bg-slate-900/40 p-6 rounded-2xl border border-slate-800">
         <div className="max-w-md w-full relative">
+          <div className="space-y-2">
+            <label className="block text-base font-extrabold uppercase tracking-wider text-slate-100">
+              Tìm kiếm gói máy chủ
+            </label>
           <Input
-            label="Tìm kiếm gói máy chủ"
+            type="text"
             placeholder="Nhập tên gói, ram... (Ví dụ: GPU RTX 3090)"
             value={searchKeyword}
             onChange={(e) => handleSearch(e.target.value)}
           />
+        </div>      
           {suggestions.length > 0 && (
             <div className="absolute z-20 mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
               {suggestions.map((item) => (
@@ -89,7 +94,7 @@ function Home({ walletAddress }) {
                   key={product._id}
                   className="group bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-blue-500/50 transition-all duration-300 flex flex-col justify-between relative"
                 >
-                  {/* CẬP NHẬT: NHÃN TRẠNG THÁI THAY ĐỔI ĐỘNG THEO YÊU CẦU */}
+                  {/* NHÃN TRẠNG THÁI THAY ĐỔI ĐỘNG THEO YÊU CẦU */}
                   <div className="absolute top-3 right-3 z-10">
                     <span className={`border text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
                       isAvailable
@@ -107,8 +112,9 @@ function Home({ walletAddress }) {
                       alt={product.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                  </div>
+                  </div>    
 
+                  {/* Chi tiết nội dung gói */}               
                   <div className="p-4 flex flex-col flex-grow justify-between">
                     <div>
                       <h4 className="font-semibold text-slate-100 line-clamp-2 min-h-[3rem]">
@@ -119,11 +125,14 @@ function Home({ walletAddress }) {
                         <div className="flex justify-between">
                           <span className="text-slate-500">Giá thuê / giờ:</span>
                           <span className="font-bold text-blue-400">{product.pricePerDay || product.pricePerHour} Token</span>
+                          <span className="font-bold text-amber-500">{product.depositAmount} Token</span>
                         </div>
                       </div>
                     </div>
+                    
 
                     {/* HIỂN THỊ NÚT BẤM DỰA VÀO QUYỀN SỞ HỮU VÀ TRẠNG THÁI MÁY */}
+                    <div className="mt-4">
                     {isMyOwnServer ? (
                       <button
                         type="button"
@@ -153,6 +162,7 @@ function Home({ walletAddress }) {
                     )}
                   </div>
                 </div>
+              </div>
               );
             })}
           </div>

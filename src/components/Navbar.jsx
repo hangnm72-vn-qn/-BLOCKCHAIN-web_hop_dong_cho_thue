@@ -98,7 +98,8 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
       </div>
 
       <div className="flex items-center gap-4">
-        {currentTab !== 'lessor-workspace' ? (
+        {/* ĐÃ KHẮC PHỤC: Bổ sung đóng mở ngoặc nhọn lồng nhau chuẩn cho khối kiểm tra tab */}
+        {currentTab !== 'lessor-workspace' && (
           isLessor ? (
             <button
               type="button"
@@ -110,21 +111,12 @@ function Navbar({ onConnectWallet, walletAddress, walletBalance, isConnecting, c
           ) : (
             <button
               type="button"
-              disabled
-              title="Quyền truy cập bị từ chối: Ví của bạn không sở hữu tài nguyên cho thuê."
-              className="text-xs font-bold text-slate-600 bg-slate-950/45 border border-slate-900 px-3 py-2 rounded-xl cursor-not-allowed opacity-55 flex items-center gap-1.5"
+              onClick={handleGoToRenter}
+              className="text-xs font-bold text-slate-300 hover:text-blue-400 bg-slate-950 border border-slate-850 hover:border-blue-500/30 px-3 py-2 rounded-xl cursor-pointer transition-all shadow-sm"
             >
-              🔒 Kênh Chủ Máy
+              🛒 Đổi sang quyền Khách hàng
             </button>
           )
-        ) : (
-          <button
-            type="button"
-            onClick={handleGoToRenter}
-            className="text-xs font-bold text-slate-300 hover:text-blue-400 bg-slate-950 border border-slate-850 hover:border-blue-500/30 px-3 py-2 rounded-xl cursor-pointer transition-all shadow-sm"
-          >
-            🛒 Đổi sang quyền Khách hàng
-          </button>
         )}
 
         {hasWalletData && (

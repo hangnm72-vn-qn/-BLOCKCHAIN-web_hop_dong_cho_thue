@@ -83,12 +83,12 @@ function Dashboard({ currentTab, walletAddress }) {
         if (prev <= 1) {
           clearInterval(timer);
           if (timerType === 'trial') {
-            setRenterData((r) => ({ ...r, status: 'Active' }));
+            setRenterData((r) => ({ ...r, status: 'Unavailable' }));
             setTimerType('rental');
             setShowToast(true);
             return 3600; // Chuyển sang 1 tiếng thuê chính thức
           } else {
-            setRenterData((r) => ({ ...r, status: 'None' }));
+            setRenterData((r) => ({ ...r, status: 'Available' }));
             return 0;
           }
         }
@@ -135,6 +135,7 @@ function Dashboard({ currentTab, walletAddress }) {
 
   // Hàm gọi API tạo sản phẩm lên Backend và Blockchain
   const handleCreateServer = async () => {
+    console.log("📸 File ảnh hiện tại trong State trước khi gửi:", imageFile);
     if (!serverForm.title || !serverForm.pricePerHour || !serverForm.ownerAddress || !imageFile || !serverForm.username || !serverForm.password) {
       setSubmitMessage('Vui lòng nhập đủ thông tin gói, tài khoản và ảnh minh họa.');
       return;
@@ -156,35 +157,36 @@ function Dashboard({ currentTab, walletAddress }) {
 
       const signer = await provider.getSigner();
       const factoryContract = createRentalFactoryContract(signer);
-
-      const priceWei = parseUnits(serverForm.pricePerHour.toString(), 18);
-      const tx = await factoryContract.listServer(priceWei, 3600);
-      setSubmitMessage('🔄 Đang đợi Smart Contract xác thực block...');
-      await tx.wait();
-
-      await createProduct(
-        serverForm.title,
-        serverForm.description,
-        serverForm.pricePerHour,
-        serverForm.ownerAddress,
-        serverForm.condition,
-        imageFile,
-        serverForm.username,
-        serverForm.password
+      const tokenAddress = await factoryContract.token();
+      const tokenContract = new Contract(
+        tokenAddress,
+        ['function decimals() view returns (uint8)'],
+        provider
       );
 
-      setSubmitMessage('Đăng tải máy chủ thành công lên hệ thống!');
-      setServerForm({
-        title: '',
-        description: '',
-        pricePerHour: '',
-        ownerAddress: currentWallet,
-        condition: 'Good',
-        username: '',
-        password: '',
-      });
-      setImageFile(null);
-      fetchLessorProducts();
+      let tokenDecimals = 18;
+      try {
+        tokenDecimals = Number(await tokenContract.decimals());
+      } catch {
+        tokenDecimals = 18;
+      }
+
+      const onChainPrice = parseUnits(String(serverForm.pricePerHour), tokenDecimals);
+      const tx = await factoryContract.createServerPackage(serverForm.title, onChainPrice);
+
+      setSubmitMessage('Đã gửi giao dịch lên smart contract, đang chờ xác nhận...');
+      await tx.wait();
+
+      // Lưu trữ dữ liệu về phía backend phục vụ hiển thị chợ máy
+      await createProduct(serverForm.title, serverForm.description, serverForm.pricePerHour, serverForm.ownerAddress, serverForm.condition, serverForm.username, serverForm.password, imageFile);
+      
+      setSubmitMessage('Thêm máy chủ thành công!');
+      
+      setTimeout(async () => {
+        await fetchLessorProducts();
+        navigate('/');
+      }, 1500);
+
     } catch (error) {
       console.error(error);
       setSubmitMessage(`Lỗi đăng tải: ${error.message || error}`);
@@ -217,7 +219,7 @@ function Dashboard({ currentTab, walletAddress }) {
     }
   };
 
-  // KHÁCH THUÊ ẤN NÚT: HỦY BỎ (BÁO LỖI & HOÀN TIỀN CỌC LẬP TỨC)
+  // KHÁCH THUÊ ẤN NÚT: HỦY BỎ (HOÀN TIỀN LẬP TỨC)
   const handleCancelAndRefund = async () => {
     setIsResolvingDispute(true);
     try {
@@ -226,12 +228,12 @@ function Dashboard({ currentTab, walletAddress }) {
       const signer = await provider.getSigner();
 
       const singleContract = createSingleContract('0xMockContractAddress...', signer);
-      // Giả lập hoặc gọi lệnh hủy hợp đồng hoàn tiền cọc lập tức trên Contract
+      // Giả lập hoặc gọi lệnh hủy hợp đồng hoàn tiền lập tức trên Contract
       // const tx = await singleContract.cancelTrialAndRefund();
       // await tx.wait();
 
       setRenterData((prev) => ({ ...prev, status: 'None' }));
-      alert('Đã hủy phiên thử nghiệm! Tiền cọc đã được hoàn trả về ví của bạn.');
+      alert('Đã hủy phiên thử nghiệm! Tiền đã được hoàn trả về ví của bạn.');
     } catch (error) {
       alert(`Lỗi xử lý hủy: ${error.message}`);
     } finally {
@@ -278,18 +280,18 @@ function Dashboard({ currentTab, walletAddress }) {
               </p>
             </div>
 
-            {renterData.status !== 'None' && (
+            {renterData.status !== 'Available' && (
               <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                 renterData.status === 'Testing'
                   ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                   : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500'
               }`}>
-                {renterData.status === 'Testing' ? 'Thử nghiệm (5p)' : 'Active'}
+                {renterData.status === 'Unavailable' ? 'Thử nghiệm (10p)' : 'Unavailable (Đang thuê)'}
               </span>
             )}
           </div>
 
-          {renterData.status === 'None' ? (
+          {renterData.status === 'Available' ? (
             <div className="py-12 flex flex-col items-center justify-center text-center gap-4 bg-slate-950/40 border border-dashed border-slate-800 rounded-xl">
               <div className="text-4xl">📭</div>
               <div>
@@ -356,7 +358,7 @@ function Dashboard({ currentTab, walletAddress }) {
 
                   <p className="text-[10px] text-slate-500">
                     {timerType === 'trial'
-                      ? 'Vui lòng kiểm tra kỹ kết nối trong thời gian dùng thử này.'
+                      ? 'Vui lòng kiểm tra kỹ kết nối trong thời gian dùng thử.'
                       : 'Hệ thống ngắt quyền truy cập On-chain khi đếm ngược kết thúc'}
                   </p>
                 </div>
@@ -369,7 +371,7 @@ function Dashboard({ currentTab, walletAddress }) {
                     <div>
                       <h4 className="text-sm font-bold text-amber-400">Xác nhận tình trạng máy chủ thử nghiệm</h4>
                       <p className="text-xs text-slate-400 mt-1">
-                        Nếu máy hoạt động tốt, chọn "Đồng ý" để bắt đầu thuê. Nếu máy lỗi hoặc không kết nối được, chọn "Hủy bỏ" để nhận lại tiền cọc.
+                        Nếu máy hoạt động tốt, chọn "Đồng ý" để bắt đầu thuê. Nếu máy lỗi hoặc không kết nối được, chọn "Hủy bỏ" để nhận lại tiền.
                       </p>
                     </div>
 
@@ -380,7 +382,7 @@ function Dashboard({ currentTab, walletAddress }) {
                         disabled={isConfirming || isResolvingDispute}
                         className="bg-rose-700 hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-colors shadow-md"
                       >
-                        {isResolvingDispute ? 'Đang hủy...' : '❌ Hủy bỏ (Trả cọc)'}
+                        {isResolvingDispute ? 'Đang hủy...' : '❌ Hủy bỏ (Trả tiền)'}
                       </button>
 
                       <button
@@ -406,7 +408,7 @@ function Dashboard({ currentTab, walletAddress }) {
               Bảng điều khiển cho thuê (Lessor Workspace)
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Đăng tải tài nguyên và xử lý trạng thái tài chính của các dòng máy
+              Đăng tải tài nguyên và xử lý trạng thái của các dòng máy
             </p>
           </div>
 
