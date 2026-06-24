@@ -12,18 +12,20 @@ export const getProductById = async (id) => {
     return response.data.data;
 };
 
-export const createProduct = async (title, pricePerHour, ownerAddress, imageFile) => {
+// 🔥 ĐÃ SỬA: Nhận đầy đủ 6 tham số truyền sang từ Dashboard.jsx
+export const createProduct = async (title, pricePerHour, ownerAddress, imageFile, description, condition) => {
   try {
     const formData = new FormData();
     formData.append('title', title);
     formData.append('pricePerHour', pricePerHour);
     formData.append('ownerAddress', ownerAddress);
     
-    // MẶC ĐỊNH MẤY TRƯỜNG CÒN THIẾU ĐỂ BACKEND KHÔNG BỊ TRỐNG
-    formData.append('description', "Máy chủ cấu hình cao phục vụ AI và ảo hóa.");
-    formData.append('depositAmount', 0); 
+    // Đổ dữ liệu động người dùng nhập từ Form vào thay vì dùng text mặc định cứng
+    formData.append('description', description || "Máy chủ cấu hình cao phục vụ AI và ảo hóa.");
+    formData.append('condition', condition || "Uptime SLA 99.99% - Băng thông 1Gbps không giới hạn");
+    formData.append('depositAmount', 0); // Giữ nguyên mặc định bằng 0 của nhóm
 
-    // 🔥 SỬA CHỖ NÀY: Đổi từ 'image' sang 'images' trùng khớp 100% với uploadCloud.array('images', 5) ở Backend
+    // Key 'images' khớp 100% với uploadCloud.array('images', 5) ở Backend
     if (imageFile) {
       formData.append('images', imageFile); 
     }

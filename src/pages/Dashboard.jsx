@@ -357,8 +357,15 @@ function Dashboard({ currentTab, walletAddress }) {
       await tx.wait();
 
       // Lưu trữ dữ liệu về phía backend phục vụ hiển thị chợ máy
-      await createProduct(serverForm.title, serverForm.description, serverForm.pricePerHour, serverForm.ownerAddress, serverForm.condition, imageFile);
-      
+// 🔥 SỬA DÒNG NÀY ĐỂ TRUYỀN ĐÚNG THỨ TỰ VÀ ĐỦ CÁC TRƯỜNG CHUẨN FORM DATA
+    await createProduct(
+    serverForm.title,
+    serverForm.pricePerHour,
+    serverForm.ownerAddress,
+    imageFile,
+    serverForm.description, // Đẩy description và condition xuống cuối
+    serverForm.condition
+);      
       setSubmitMessage('Thêm máy chủ thành công!');
       
       setTimeout(async () => {
