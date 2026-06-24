@@ -12,25 +12,33 @@ export const getProductById = async (id) => {
     return response.data.data;
 };
 
-// Đăng máy chủ mới (Đã đồng bộ dùng instance api + FormData)
-export const createProduct = async (title, description, pricePerHour, ownerAddress, condition, imageFile) => {
-  const formData = new FormData();
-  formData.append('title', title);
-  formData.append('description', description);
-  formData.append('pricePerHour', pricePerHour);
-  formData.append('ownerAddress', ownerAddress);
-  formData.append('condition', condition);
-  
-  // 🌟 Chú ý: Đoạn này hãy để tên trường trùng khớp với backend nhận (ví dụ 'image' hoặc 'imageFile')
-  formData.append('image', imageFile); 
+export const createProduct = async (title, pricePerHour, ownerAddress, imageFile) => {
+  try {
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('pricePerHour', pricePerHour);
+    formData.append('ownerAddress', ownerAddress);
+    
+    // MẶC ĐỊNH MẤY TRƯỜNG CÒN THIẾU ĐỂ BACKEND KHÔNG BỊ TRỐNG
+    formData.append('description', "Máy chủ cấu hình cao phục vụ AI và ảo hóa.");
+    formData.append('depositAmount', 0); 
 
-  // Dùng trực tiếp instance 'api' để thừa hưởng cấu hình từ file api.js
-  const response = await api.post('/products', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data', 
-    },
-  });
-  return response.data;
+    // 🔥 SỬA CHỖ NÀY: Đổi từ 'image' sang 'images' trùng khớp 100% với uploadCloud.array('images', 5) ở Backend
+    if (imageFile) {
+      formData.append('images', imageFile); 
+    }
+
+    const response = await api.post('/products', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi gọi API createProduct:", error);
+    throw error;
+  }
 };
 
 // Kích hoạt tài nguyên máy sau khi on-chain rentServer thành công

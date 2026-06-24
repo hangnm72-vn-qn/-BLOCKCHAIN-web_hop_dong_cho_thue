@@ -105,8 +105,7 @@ function Home() {
                       <div className="flex justify-between">
                         <span className="text-slate-500">Giá thuê / giờ:</span>
                         {/* Tạm thời giữ dữ liệu cũ nhưng đổi đơn vị hiển thị thành Token/Giờ */}
-                        <span className="font-bold text-blue-400">{product.pricePerDay} Token</span>
-                      </div>
+                      <span className="font-bold text-blue-400">{product.pricePerHour} Token</span>                      </div>
                       <div className="flex justify-between">
                         <span className="text-slate-500">Tiền cọc (Khóa ví trung gian):</span>
                         <span className="font-bold text-amber-500">{product.depositAmount} Token</span>
