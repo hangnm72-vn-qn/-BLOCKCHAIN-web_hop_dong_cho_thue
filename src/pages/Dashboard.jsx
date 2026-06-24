@@ -350,13 +350,13 @@ function Dashboard({ currentTab, walletAddress }) {
       } catch {
         tokenDecimals = 18;
       }
-
+/*
       const onChainPrice = parseUnits(String(serverForm.pricePerHour), tokenDecimals);
       const tx = await factoryContract.createServerPackage(serverForm.title, onChainPrice);
 
       setSubmitMessage('Đã gửi giao dịch lên smart contract, đang chờ xác nhận...');
       await tx.wait();
-
+*/
 // 🔥 SỬA LẠI THỨ TỰ CÁC BIẾN CHO ĐÚNG VỚI HÀM TRONG PRODUCTSERVICE:
 await createProduct(
   serverForm.title,          // 1. title
