@@ -272,7 +272,7 @@ function ProductDetail() {
                     const signer = await provider.getSigner();
                     const factory = createRentalFactoryContract(signer);
                     
-                    let packageAddress = product.contractAddress || '';
+                    let packageAddress = product.packageAddress || '';
                     if (!packageAddress) {
                       const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
                       const perHourOnChain = parseUnits(String(product.pricePerHour), 18);
@@ -315,7 +315,7 @@ function ProductDetail() {
                     const provider = new BrowserProvider(window.ethereum);
                     const signer = await provider.getSigner();
                     const factory = createRentalFactoryContract(signer);
-                    let packageAddress = product.contractAddress || '';
+                    let packageAddress = product.packageAddress || '';
                     if (!packageAddress) {
                       const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
                       for (let i = 0; i < packageIds.length; i++) {
@@ -356,7 +356,7 @@ function ProductDetail() {
                     const provider = new BrowserProvider(window.ethereum);
                     const signer = await provider.getSigner();
                     const factory = createRentalFactoryContract(signer);
-                    let packageAddress = product.contractAddress || '';
+                    let packageAddress = product.packageAddress || '';
                     if (!packageAddress) {
                       const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
                       for (let i = 0; i < packageIds.length; i++) {
