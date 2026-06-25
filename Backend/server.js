@@ -32,7 +32,7 @@ const io = new Server(server, {
 const usersDb = []; 
 
 // ==========================================
-// 🗄️ KẾT NỐI DATABASE & SEED DATA MẪU
+// 🗄️ KẾT NỐI DATABASE & SEED DATA MẪU (PHIÊN BẢN ĐÃ ĐỒNG BỘ WEB3)
 // ==========================================
 async function connectDatabase() {
   try {
@@ -55,6 +55,10 @@ async function connectDatabase() {
           pricePerHour: 0.002,
           depositAmount: 0,   
           ownerAddress: "0x71c7656ec7ab88b098defb751b7401b5f6d8a9b",
+          
+          // 🔥 ĐÃ THÊM: Địa chỉ ví contract giả lập cho dữ liệu mẫu để vượt bộ lọc database
+          packageAddress: "0x0000000000000000000000000000000000000000",
+          
           renterAddress: "",
           images: ["https://images.unsplash.com/photo-1600132806370-bf17e65e942f?q=80&w=600&auto=format&fit=crop"],
           status: "Available",
@@ -71,6 +75,10 @@ async function connectDatabase() {
           pricePerHour: 0.015,
           depositAmount: 0,
           ownerAddress: "0x95222290dd7278aa3dddd389cc1e1d165cc4bafe",
+          
+          // 🔥 ĐÃ THÊM: Địa chỉ ví contract giả lập cho dữ liệu mẫu để vượt bộ lọc database
+          packageAddress: "0x0000000000000000000000000000000000000000",
+          
           renterAddress: "",
           images: ["https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=600&auto=format&fit=crop"],
           status: "Available",
