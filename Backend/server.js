@@ -57,7 +57,7 @@ async function connectDatabase() {
           ownerAddress: "0x71c7656ec7ab88b098defb751b7401b5f6d8a9b",
           
           // 🔥 ĐÃ THÊM: Địa chỉ ví contract giả lập cho dữ liệu mẫu để vượt bộ lọc database
-          packageAddress: "0x0000000000000000000000000000000000000000",
+          packageAddress: "0x7371c39599880286F6bbc07465A7c8C17ba2D69F",
           
           renterAddress: "",
           images: ["https://images.unsplash.com/photo-1600132806370-bf17e65e942f?q=80&w=600&auto=format&fit=crop"],
@@ -77,7 +77,7 @@ async function connectDatabase() {
           ownerAddress: "0x95222290dd7278aa3dddd389cc1e1d165cc4bafe",
           
           // 🔥 ĐÃ THÊM: Địa chỉ ví contract giả lập cho dữ liệu mẫu để vượt bộ lọc database
-          packageAddress: "0x0000000000000000000000000000000000000000",
+          packageAddress: "0x8FE5a6d5EA3255BcEABB9c29b7f2C56A58EaA1fc",
           
           renterAddress: "",
           images: ["https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=600&auto=format&fit=crop"],
