@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Button from '../components/Button';
 import Input from '../components/Input';
-// ĐÃ SỬA: Import thêm hàm terminateProduct từ Service của Ân để dứt điểm xoá ví thuê
-import { getProductById, updateProductStatus, provisionProduct, terminateProduct } from "../Service - Ân/productService"
+// ĐÃ SỬA: Import thêm hàm terminateProduct từ Service để dứt điểm xoá ví thuê
+import { getProductById, updateProductStatus, provisionProduct, terminateProduct } from "../Service - Ân/productService";
 import { useParams, useNavigate } from 'react-router-dom';
 import { BrowserProvider, Contract, parseUnits } from 'ethers';
 import { createRentalFactoryContract, createSingleContract, SEPOLIA_CHAIN_ID } from '../contracts/rentalFactoryConfig';
@@ -10,8 +10,8 @@ import { createRentalFactoryContract, createSingleContract, SEPOLIA_CHAIN_ID } f
 function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [product, setProduct] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const [rentHours, setRentHours] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -21,15 +21,15 @@ function ProductDetail() {
 
   useEffect(() => {
     const fetchProduct = async () => {
-      const data = await getProductById(id)
-      setProduct(data)
-      setLoading(false)
-    }
-    fetchProduct()
-  }, [id])
+      const data = await getProductById(id);
+      setProduct(data);
+      setLoading(false);
+    };
+    fetchProduct();
+  }, [id]);
 
-  if (loading) return <p className="text-slate-400 text-center mt-10">Đang tải thông tin máy chủ...</p>
-  if (!product) return <p className="text-slate-400 text-center mt-10">Không tìm thấy thông tin máy chủ.</p>
+  if (loading) return <p className="text-slate-400 text-center mt-10">Đang tải thông tin máy chủ...</p>;
+  if (!product) return <p className="text-slate-400 text-center mt-10">Không tìm thấy thông tin máy chủ.</p>;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-10 text-left mt-4">
@@ -174,24 +174,11 @@ function ProductDetail() {
 
                     const totalAmount = parseUnits(String(totalPrice), decimals);
 
-                    let packageAddress = product.contractAddress || '';
-                    if (!packageAddress) {
-                      const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
-                      const perHourOnChain = parseUnits(String(product.pricePerHour), decimals);
-                      for (let i = 0; i < packageIds.length; i++) {
-                        const pkgId = packageIds[i];
-                        const info = await factory.getPackageInfo(pkgId);
-                        try {
-                          if (info.pricePerHour.toString() === perHourOnChain.toString()) {
-                            packageAddress = await factory.getPackageAddress(pkgId);
-                            break;
-                          }
-                        } catch (e) {}
-                      }
-                    }
+                    // ⚡ XỬ LÝ NÚT BẤM: THUÊ NGAY
+                    const packageAddress = product.packageAddress;
 
                     if (!packageAddress) {
-                      setMessage('Không tìm thấy contract gói máy trên blockchain. Vui lòng cấu hình contractAddress trong backend.');
+                      setMessage('Không tìm thấy contract gói máy trên hệ thống database.');
                       return;
                     }
 
@@ -270,30 +257,15 @@ function ProductDetail() {
                     setMessage('Gửi xác nhận OK lên chain...');
                     const provider = new BrowserProvider(window.ethereum);
                     const signer = await provider.getSigner();
-                    const factory = createRentalFactoryContract(signer);
                     
-                    let packageAddress = product.packageAddress || '';
-                    if (!packageAddress) {
-                      const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
-                      const perHourOnChain = parseUnits(String(product.pricePerHour), 18);
-                      for (let i = 0; i < packageIds.length; i++) {
-                        const pkgId = packageIds[i];
-                        const info = await factory.getPackageInfo(pkgId);
-                        try {
-                          if (info.pricePerHour.toString() === perHourOnChain.toString()) {
-                            packageAddress = await factory.getPackageAddress(pkgId);
-                            break;
-                          }
-                        } catch (e) {}
-                      }
-                    }
+                    const packageAddress = product.packageAddress;
+                    if (!packageAddress) return setMessage('Thiếu địa chỉ Contract!');
 
                     const single = createSingleContract(packageAddress, signer);
                     const tx = await single.confirmRental(contractId);
                     await tx.wait();
                     setMessage('Xác nhận OK đã được ghi nhận trên chain.');
                     
-                    // CHUẨN HOÁ: Chuyển máy sang trạng thái Active chạy chính thức
                     try { await updateProductStatus(product._id, 'Active'); } catch (e) {}
                   } catch (e) {
                     console.error(e);
@@ -314,27 +286,15 @@ function ProductDetail() {
                     setMessage('Gửi lệnh chấp nhận giảm giá...');
                     const provider = new BrowserProvider(window.ethereum);
                     const signer = await provider.getSigner();
-                    const factory = createRentalFactoryContract(signer);
-                    let packageAddress = product.packageAddress || '';
-                    if (!packageAddress) {
-                      const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
-                      for (let i = 0; i < packageIds.length; i++) {
-                        const pkgId = packageIds[i];
-                        const info = await factory.getPackageInfo(pkgId);
-                        try {
-                          if (info.pricePerHour.toString() === parseUnits(String(product.pricePerHour), 18).toString()) {
-                            packageAddress = await factory.getPackageAddress(pkgId);
-                            break;
-                          }
-                        } catch (e) {}
-                      }
-                    }
+                    
+                    const packageAddress = product.packageAddress;
+                    if (!packageAddress) return setMessage('Thiếu địa chỉ Contract!');
+
                     const single = createSingleContract(packageAddress, signer);
                     const tx = await single.acceptDiscount(contractId);
                     await tx.wait();
                     setMessage('Đã chấp nhận giảm giá, máy hoạt động tiếp.');
                     
-                    // ĐỒNG BỘ CHUẨN: Chuyển trạng thái máy sang chạy chính thức luôn
                     try { await updateProductStatus(product._id, 'Active'); } catch (e) {}
                   } catch (e) {
                     console.error(e);
@@ -345,7 +305,7 @@ function ProductDetail() {
                 Đồng ý giảm giá 20%
               </Button>
 
-              {/* NHÁNH 1 (PHẦN B) & NHÁNH 3: Khách không thuê nữa, hủy hoàn tiền / Giải phóng tài nguyên */}
+              {/* NHÁNH 1 (PHẦN B) & NHÁNH 3: Khách từ chối -> Hủy, hoàn tiền & xóa ví renterAddress khỏi DB */}
               <Button
                 variant="secondary"
                 className="flex-1 bg-rose-950/40 text-rose-400 border border-rose-900/60 hover:bg-rose-900/40"
@@ -355,38 +315,35 @@ function ProductDetail() {
                     setMessage('Gửi lệnh hoàn tiền (reject) lên chain...');
                     const provider = new BrowserProvider(window.ethereum);
                     const signer = await provider.getSigner();
-                    const factory = createRentalFactoryContract(signer);
-                    let packageAddress = product.packageAddress || '';
-                    if (!packageAddress) {
-                      const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
-                      for (let i = 0; i < packageIds.length; i++) {
-                        const pkgId = packageIds[i];
-                        const info = await factory.getPackageInfo(pkgId);
-                        try {
-                          if (info.pricePerHour.toString() === parseUnits(String(product.pricePerHour), 18).toString()) {
-                            packageAddress = await factory.getPackageAddress(pkgId);
-                            break;
-                          }
-                        } catch (e) {}
-                      }
-                    }
+                    
+                    const packageAddress = product.packageAddress;
+                    if (!packageAddress) return setMessage('Thiếu địa chỉ Contract!');
+
                     const single = createSingleContract(packageAddress, signer);
                     const tx = await single.rejectDiscount(contractId);
                     await tx.wait();
-                    setMessage('Đã hủy & hoàn tiền 100% cho khách.');
+                    setMessage('Đã hủy trên chain thành công! Đang dọn dẹp database...');
                     
-                    // 🔥 ĐÃ VÁ LỖI: Sử dụng terminateProduct của Ân để xóa hẳn ví renterAddress khỏi DB
+                    // Cập nhật trạng thái máy về Available trước
+                    try { await updateProductStatus(product._id, 'Available'); } catch (e) {}
+                    
+                    // 🔥 ĐÃ VÁ LỖI: Gọi API dứt điểm xoá hẳn ví renterAddress khỏi DB
                     try { 
                       await terminateProduct(product._id); 
-                      // Refresh lại trang để cập nhật giao diện máy trống
-                      window.location.reload();
-                    } catch (e) {
-                      console.error("Lỗi đồng bộ giải phóng ví:", e);
+                      setMessage('Đã hủy & hoàn tiền 100% cho khách.');
+                      // Refresh lại trang để cập nhật giao diện máy trống sau 1.5s
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 1500);
+                    } catch (dbErr) {
+                      console.error("Lỗi đồng bộ giải phóng ví dưới DB:", dbErr);
                     }
                   } catch (e) {
                     console.error(e);
-                    setMessage('Lỗi khi huỷ & hoàn tiền: ' + (e?.message || ''));
-                  } finally { setIsProcessing(false); }
+                    setMessage('Lỗi khi hủy: ' + (e?.message || ''));
+                  } finally { 
+                    setIsProcessing(false); 
+                  }
                 }}
               >
                 Hủy và hoàn tiền
