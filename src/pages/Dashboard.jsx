@@ -114,7 +114,7 @@ function Dashboard({ currentTab, walletAddress }) {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Lấy danh sách máy chủ do ví này đăng
+// Lấy danh sách máy chủ do ví này đăng
   const fetchLessorProducts = async () => {
     if (!currentWallet) return;
     setIsLoadingProducts(true);
@@ -133,7 +133,41 @@ function Dashboard({ currentTab, walletAddress }) {
     setServerForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Hàm gọi API tạo sản phẩm lên Backend và Blockchain
+// ✅ Tự động kiểm tra mạng liên tục chuẩn kiểu dữ liệu BigInt (Đã sửa từ walletAddress thành currentWallet)
+  useEffect(() => {
+    const checkNetworkRealTime = async () => {
+      if (window.ethereum) {
+        try {
+          const provider = new BrowserProvider(window.ethereum);
+          const network = await provider.getNetwork();
+          
+          // Sử dụng BigInt() để ép kiểu network.chainId đồng bộ với SEPOLIA_CHAIN_ID (11155111n)
+          if (BigInt(network.chainId) === SEPOLIA_CHAIN_ID) {
+            setSubmitMessage(''); // Tự động xóa chữ đỏ ngay lập tức khi mạng đúng
+          } else {
+            setSubmitMessage('Vui lòng chuyển mạng ví sang Sepolia Testnet!');
+          }
+        } catch (err) {
+          console.error("Lỗi đọc mạng realtime:", err);
+        }
+      }
+    };
+    
+    checkNetworkRealTime();
+
+    // Lắng nghe trực tiếp sự kiện đổi mạng từ MetaMask ngay tại Dashboard
+    if (window.ethereum) {
+      window.ethereum.on('chainChanged', checkNetworkRealTime);
+    }
+
+    return () => {
+      if (window.ethereum && window.ethereum.removeListener) {
+        window.ethereum.removeListener('chainChanged', checkNetworkRealTime);
+      }
+    };
+  }, [currentWallet]); // Đã sửa thành currentWallet để đồng bộ theo ví của ông!
+
+  // ✅ LUỒNG XỬ LÝ CHUẨN: Giao dịch Smart Contract thành công -> Tự động gọi API đẩy lên Backend
   const handleCreateServer = async () => {
     console.log("📸 File ảnh hiện tại trong State trước khi gửi:", imageFile);
     if (!serverForm.title || !serverForm.pricePerHour || !serverForm.ownerAddress || !imageFile || !serverForm.username || !serverForm.password) {
@@ -142,14 +176,15 @@ function Dashboard({ currentTab, walletAddress }) {
     }
 
     setIsSubmitting(true);
-    setSubmitMessage('');
+    setSubmitMessage('Đang khởi tạo kết nối Web3...');
 
     try {
       if (!window.ethereum) throw new Error('Vui lòng cài đặt ví MetaMask!');
       const provider = new BrowserProvider(window.ethereum);
       const network = await provider.getNetwork();
 
-      if (Number(network.chainId) !== SEPOLIA_CHAIN_ID) {
+      // Đã sửa thành BigInt để triệt tiêu lỗi "đơ chữ đỏ" do lệch kiểu dữ liệu (Number vs BigInt)
+      if (BigInt(network.chainId) !== SEPOLIA_CHAIN_ID) {
         setSubmitMessage('Vui lòng chuyển mạng ví sang Sepolia Testnet!');
         setIsSubmitting(false);
         return;
@@ -171,25 +206,48 @@ function Dashboard({ currentTab, walletAddress }) {
         tokenDecimals = 18;
       }
 
+      // 1. Gửi transaction tạo máy chủ mới lên Smart Contract
       const onChainPrice = parseUnits(String(serverForm.pricePerHour), tokenDecimals);
       const tx = await factoryContract.createServerPackage(serverForm.title, onChainPrice);
 
       setSubmitMessage('Đã gửi giao dịch lên smart contract, đang chờ xác nhận...');
-      await tx.wait();
+      const receipt = await tx.wait();
 
-      // Lưu trữ dữ liệu về phía backend phục vụ hiển thị chợ máy
-      await createProduct(serverForm.title, serverForm.description, serverForm.pricePerHour, serverForm.ownerAddress, serverForm.condition, serverForm.username, serverForm.password, imageFile);
+      // 2. Hứng lấy địa chỉ Contract Package con vừa được Blockchain sinh ra từ Logs
+      const deployedPackageAddress = receipt.logs[0]?.address || receipt.to;
       
-      setSubmitMessage('Thêm máy chủ thành công!');
-      
-      setTimeout(async () => {
-        await fetchLessorProducts();
-        navigate('/');
-      }, 1500);
+      if (!deployedPackageAddress) {
+        throw new Error("Blockchain không trả về địa chỉ Package Address hợp lệ!");
+      }
+
+      setSubmitMessage('Blockchain xác nhận! Đang tiến hành lưu thông tin lên database MongoDB...');
+
+      // 3. GỌI SERVICE ĐỂ ĐẨY DATA + PACKAGE_ADDRESS LÊN BACKEND MONGODB
+      const backendResult = await createProduct(
+        serverForm.title,
+        `Cấu hình: ${serverForm.cpu || '4 vCPU'}, ${serverForm.ram || '16GB RAM'}, ${serverForm.gpu || 'Không có'}. Tài khoản: ${serverForm.username}`,
+        serverForm.pricePerHour,
+        serverForm.ownerAddress,
+        "Uptime SLA 99.9%", 
+        imageFile,
+        deployedPackageAddress // Truyền địa chỉ ví Contract con lưu xuống database
+      );
+
+      if (backendResult.success) {
+        setSubmitMessage('🎉 Đăng máy chủ thành công và đồng bộ Blockchain hoàn tất!');
+        
+        // Đợi 1.5 giây để người dùng kịp nhìn thấy thông báo thành công rồi làm mới danh sách dữ liệu
+        setTimeout(async () => {
+          await fetchLessorProducts();
+          window.location.reload();
+        }, 1500);
+      } else {
+        setSubmitMessage('Lưu dữ liệu máy chủ lên Backend thất bại!');
+      }
 
     } catch (error) {
-      console.error(error);
-      setSubmitMessage(`Lỗi đăng tải: ${error.message || error}`);
+      console.error("Lỗi trong quá trình đăng máy chủ:", error);
+      setSubmitMessage(error.reason || error.message || 'Có lỗi xảy ra, vui lòng thử lại!');
     } finally {
       setIsSubmitting(false);
     }
@@ -487,15 +545,22 @@ function Dashboard({ currentTab, walletAddress }) {
                 </div>
               </div>
 
+              {/* 🌟 ĐÃ SỬA: Chỉ hiển thị chữ đỏ nếu THỰC SỰ SAI MẠNG và ĐỒNG BỘ ẩn/hiện logic */}
               {submitMessage && (
-                <p className={`text-xs ${submitMessage.includes('thành công') ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {submitMessage}
-                </p>
-              )}
+             <p className={`text-xs mt-2 text-center font-semibold ${submitMessage.includes('Sepolia') ? 'text-rose-400' : 'text-emerald-400'}`}>
+             {submitMessage}
+            </p>
+            )}
 
-              <button type="button" onClick={handleCreateServer} disabled={isSubmitting} className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors cursor-pointer mt-2 shadow-lg shadow-emerald-950/20">
-                {isSubmitting ? 'Đang kích hoạt gói...' : 'Xác thực & Thêm máy lên Trang chủ'}
-              </button>
+            <button 
+            type="button" 
+            onClick={handleCreateServer} 
+            // 🌟 ĐÃ SỬA: Khóa luôn nút bấm không cho nhấn nếu ví đang ở sai mạng
+            disabled={isSubmitting || submitMessage.includes('Vui lòng chuyển mạng')} 
+            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors cursor-pointer mt-2 shadow-lg shadow-emerald-950/20"
+            >
+            {isSubmitting ? 'Đang kích hoạt gói...' : 'Xác thực & Thêm máy lên Trang chủ'}
+            </button>
             </form>
 
             {/* ==================== ĐÃ FIX LỖI KHỐI 2: NHẬT KÝ VẬN HÀNH MÁY CHỦ ==================== */}

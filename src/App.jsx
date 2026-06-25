@@ -19,7 +19,7 @@ function App() {
   const [factoryToken, setFactoryToken] = useState('');
   const [factoryStatus, setFactoryStatus] = useState('Chưa kết nối contract');
 
-  // THAY ĐỔI LỚN: Sử dụng activeTab thay cho role để quản lý phân luồng Menu
+  // Sử dụng activeTab thay cho role để quản lý phân luồng Menu
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('trustrent.activeTab') || 'my-rentals';
   });
@@ -36,12 +36,10 @@ function App() {
       localStorage.setItem('trustrent.walletBalance', balance);
       return;
     }
-
     localStorage.removeItem('trustrent.walletAddress');
     localStorage.removeItem('trustrent.walletBalance');
   };
 
-  // Lấy số dư ETH của một địa chỉ ví
   // Lấy số dư ETH của một địa chỉ ví
   const updateWalletData = async (provider, address) => {
     const balance = await provider.getBalance(address);
@@ -61,6 +59,7 @@ function App() {
       console.error('Lỗi kiểm tra quyền chủ máy:', err);
     }
   };
+
   // Khởi tạo RentalFactory bằng ABI + address rồi đọc dữ liệu on-chain để xác nhận contract hoạt động.
   const syncFactoryData = async (provider) => {
     try {
@@ -146,7 +145,7 @@ function App() {
     }
   };
 
-  // Lắng nghe sự kiện đổi ví từ MetaMask
+  // Lắng nghe sự kiện đổi ví và đổi mạng từ MetaMask
   useEffect(() => {
     if (!window.ethereum) {
       return undefined;
@@ -154,6 +153,7 @@ function App() {
 
     const provider = new BrowserProvider(window.ethereum);
 
+    // 1. Hàm xử lý khi người dùng đổi tài khoản ví
     const handleAccountsChanged = async (accounts) => {
       if (!accounts.length) {
         setWalletAddress('');
@@ -163,12 +163,14 @@ function App() {
         setFactoryStatus('Chưa kết nối contract');
         return;
       }
-
       await updateWalletData(provider, accounts[0]);
       await syncFactoryData(provider);
+      window.location.reload(); 
     };
 
+    // 2. Hàm xử lý khi người dùng đổi mạng Blockchain
     const handleChainChanged = () => {
+      console.log("🔄 Phát hiện đổi mạng! Đang reload dApp...");
       window.location.reload();
     };
 
@@ -180,11 +182,14 @@ function App() {
     });
 
     return () => {
-      window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-      window.ethereum.removeListener('chainChanged', handleChainChanged);
+      if (window.ethereum) {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
+      }
     };
   }, []);
 
+  // ✅ ĐÃ FIX CHỖ NÀY: Thêm khối return giao diện bọc ngoài chính xác của React Component
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
@@ -203,7 +208,6 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/product/:id" element={<ProductDetail />} />
               <Route path="/add-product" element={<AddProduct />} />
-              {/* ĐỒNG BỘ: Giữ nguyên prop truyền xuống Dashboard */}
               <Route path="/dashboard" element={<Dashboard currentTab={activeTab} walletAddress={walletAddress} />} />
             </Routes>
           </main>
