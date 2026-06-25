@@ -31,7 +31,12 @@ const ProductSchema = new mongoose.Schema({
   }, 
   status: { 
     type: String, 
-    default: 'Available' 
+    default: 'Available'
+  },
+  // ✅ ĐÃ SỬA: Thêm dấu phẩy và xóa timestamps viết nhầm vị trí ở đây
+  packageAddress: { 
+    type: String, 
+    required: true  
   }, 
   condition: {
     type: String,
@@ -59,7 +64,7 @@ const ProductSchema = new mongoose.Schema({
     } 
   }
 }, {
-  timestamps: true 
+  timestamps: true // Định nghĩa timestamps ở đây là chuẩn rồi này!
 });
 
 // 2. ⭐ ĐÃ SỬA: Tạo biến Product từ Schema để các hàm bên dưới gọi trúng đối tượng truy vấn Database

@@ -12,37 +12,40 @@ export const getProductById = async (id) => {
     return response.data.data;
 };
 
-// Nhận đầy đủ 6 tham số truyền sang từ Dashboard.jsx
-export const createProduct = async (title, pricePerHour, ownerAddress, imageFile, description, condition) => {
-  try {
-    const formData = new FormData();
-    formData.append('title', title);
-    formData.append('pricePerHour', pricePerHour);
-    formData.append('ownerAddress', ownerAddress);
-    formData.append('description', description || "Máy chủ cấu hình cao phục vụ AI và ảo hóa.");
-    formData.append('condition', condition || "Uptime SLA 99.99% - Băng thông 1Gbps không giới hạn");
-    formData.append('depositAmount', 0); 
+// ✅ ĐÃ SỬA HOÀN CHỈNH: Hàm tạo máy chủ kết hợp kiểm tra File và đồng bộ packageAddress
+export const createProduct = async (title, description, pricePerDay, ownerAddress, condition, imageFile, packageAddress) => {
+    try {
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('description', description);
+        formData.append('pricePerHour', pricePerDay); 
+        formData.append('ownerAddress', ownerAddress);
+        formData.append('condition', condition);
+        
+        // ĐÃ THÊM: Đóng gói địa chỉ ví contract vừa deploy on-chain gửi lên backend
+        formData.append('packageAddress', packageAddress); 
 
-    // 🔥 KIỂM TRA CHÍNH XÁC ĐỐI TƯỢNG FILE TRƯỚC KHI GỬI
-    if (imageFile && imageFile instanceof File) {
-      console.log("✈️ FormData chuẩn bị gửi file đi:", imageFile.name);
-      formData.append('images', imageFile); 
-    } else {
-      console.error("⚠️ Cảnh báo nguy hiểm: Biến imageFile truyền vào hàm không phải là một đối tượng File hợp lệ!", imageFile);
+        // 🔥 KIỂM TRA CHÍNH XÁC ĐỐI TƯỢNG FILE TRƯỚC KHI GỬI
+        // Nhóm ông thống nhất dùng key là 'image' hay 'images' thì sửa lại ở backend nhé, ở đây tôi giữ 'image' theo cấu trúc form.
+        if (imageFile && imageFile instanceof File) {
+            console.log("✈️ FormData chuẩn bị gửi file đi:", imageFile.name);
+            formData.append('image', imageFile); 
+        } else {
+            console.error("⚠️ Cảnh báo nguy hiểm: Biến imageFile truyền vào hàm không phải là một đối tượng File hợp lệ!", imageFile);
+        }
+
+        // Gọi API sử dụng instance 'api' đồng bộ toàn dự án
+        const response = await api.post('/products', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        return response.data;
+    } catch (error) {
+        console.error("Lỗi gọi API createProduct:", error);
+        throw error;
     }
-
-    // Xem log trong tab Network xem FormData có 'images' chưa
-    const response = await api.post('/products', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-
-    return response.data;
-  } catch (error) {
-    console.error("Lỗi gọi API createProduct:", error);
-    throw error;
-  }
 };
 
 // Kích hoạt tài nguyên máy sau khi on-chain rentServer thành công
@@ -83,9 +86,10 @@ export const getSessionTime = async (productId) => {
 
 // Lấy danh sách máy chủ mà 1 ví đã đăng (dành cho Chủ máy)
 export const getProductsByOwner = async (ownerAddress) => {
-    const allProducts = await getAllProducts()
-    return allProducts.filter(p => p.ownerAddress?.toLowerCase() === ownerAddress?.toLowerCase())
-}
+    const allProducts = await getAllProducts();
+    return allProducts.filter(p => p.ownerAddress?.toLowerCase() === ownerAddress?.toLowerCase());
+};
+
 // Kiểm tra xem ví này đã từng đăng máy chủ nào chưa
 export const checkIsLessor = async (walletAddress) => {
     const allProducts = await getAllProducts();
