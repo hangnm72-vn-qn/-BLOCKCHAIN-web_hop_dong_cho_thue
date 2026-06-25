@@ -139,15 +139,13 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-// 2. API POST Đăng máy chủ mới - PHIÊN BẢN SIÊU CẤP CHỐNG SẬP + CÓ LOG BẮT BỆNH CLOUDINARY
+// 2. API POST Đăng máy chủ mới - PHIÊN BẢN CHUẨN ĐỒNG BỘ WEB3 + BACKEND
 app.post('/api/products', (req, res, next) => {
-  // 🔥 Chạy Multer Cloudinary một cách an toàn
-  uploadCloud.array('images', 5)(req, res, function (err) {
+  // 🔥 SỬA LỖI UPLOAD: Chuyển sang .single('image') hoặc sử dụng .any() để chấp nhận mọi key ảnh từ Frontend gửi lên
+  uploadCloud.any()(req, res, function (err) {
     if (err) {
-      // Hiện nguyên văn lỗi từ Cloudinary/Multer ra Terminal để admin xem
       console.log("⚠️ LỖI UPLOAD CLOUDINARY CHI TIẾT TẠI ĐÂY NÈ ÔNG CHÁU ƠI:", err);
     }
-    // Gặp lỗi hay không vẫn cho đi tiếp tới hàm lưu database để chống sập ứng dụng
     next();
   });
 }, async (req, res) => {
@@ -156,17 +154,19 @@ app.post('/api/products', (req, res, next) => {
     console.log("📩 Dữ liệu nhận từ req.body:", req.body);
     console.log("📸 Danh sách file nhận từ req.files:", req.files);
 
-    const { title, pricePerHour, ownerAddress } = req.body;
+    // 🔥 SỬA LỖI THIẾU BIẾN: Bốc tách thêm 'packageAddress' từ req.body gửi lên
+    const { title, pricePerHour, ownerAddress, packageAddress } = req.body;
     
-    if (!title || !pricePerHour || !ownerAddress) {
+    // Kiểm tra thêm điều kiện phải có packageAddress mới cho qua
+    if (!title || !pricePerHour || !ownerAddress || !packageAddress) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Thiếu thông tin bắt buộc (title, pricePerHour, ownerAddress)!' 
+        message: 'Thiếu thông tin bắt buộc (title, pricePerHour, ownerAddress, packageAddress)!' 
       });
     }
 
     let imageUrls = [];
-    // Nếu có file ảnh được tải lên thành công qua Multer Cloudinary
+    // Đồng bộ cách lấy file từ uploadCloud.any()
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
         imageUrls.push(file.path); // Lấy link ảnh từ Cloudinary trả về
@@ -184,6 +184,10 @@ app.post('/api/products', (req, res, next) => {
       pricePerHour: Number(pricePerHour),
       depositAmount: Number(req.body.depositAmount || 0),
       ownerAddress: ownerAddress.trim().toLowerCase(),
+      
+      // 🔥 SỬA CHỖ NÀY: Nạp chính xác địa chỉ Contract con vào MongoDB để hết lỗi Validation Required!
+      packageAddress: packageAddress.trim(), 
+      
       renterAddress: "",
       status: "Available",
       images: imageUrls,
