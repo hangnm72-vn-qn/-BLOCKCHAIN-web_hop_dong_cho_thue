@@ -125,7 +125,6 @@ function Home({ walletAddress }) {
                         <div className="flex justify-between">
                           <span className="text-slate-500">Giá thuê / giờ:</span>
                           <span className="font-bold text-blue-400">{product.pricePerDay || product.pricePerHour} Token</span>
-                          <span className="font-bold text-amber-500">{product.depositAmount} Token</span>
                         </div>
                       </div>
                     </div>

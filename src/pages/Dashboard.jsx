@@ -204,10 +204,6 @@ function Dashboard({ currentTab, walletAddress }) {
       const signer = await provider.getSigner();
 
       const singleContract = createSingleContract('0xMockContractAddress...', signer);
-      // Giả lập hoặc gọi lệnh On-chain xác nhận hoàn thành sớm phiên thử nghiệm
-      // const tx = await singleContract.confirmStartRental();
-      // await tx.wait();
-
       setRenterData((prev) => ({ ...prev, status: 'Active' }));
       setTimerType('rental');
       setTimeLeft(3600); // Kích hoạt chạy phiên chính thức 1 tiếng
@@ -228,10 +224,6 @@ function Dashboard({ currentTab, walletAddress }) {
       const signer = await provider.getSigner();
 
       const singleContract = createSingleContract('0xMockContractAddress...', signer);
-      // Giả lập hoặc gọi lệnh hủy hợp đồng hoàn tiền lập tức trên Contract
-      // const tx = await singleContract.cancelTrialAndRefund();
-      // await tx.wait();
-
       setRenterData((prev) => ({ ...prev, status: 'None' }));
       alert('Đã hủy phiên thử nghiệm! Tiền đã được hoàn trả về ví của bạn.');
     } catch (error) {
@@ -280,9 +272,10 @@ function Dashboard({ currentTab, walletAddress }) {
               </p>
             </div>
 
-            {renterData.status !== 'Available' && (
+            {/* Chỉ hiển thị Badge trạng thái khi có máy đang hoạt động/thử nghiệm thực tế */}
+            {renterData && renterData.status && renterData.status !== 'Available' && (
               <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                renterData.status === 'Testing'
+                renterData.status === 'Unavailable' 
                   ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                   : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500'
               }`}>
@@ -291,7 +284,7 @@ function Dashboard({ currentTab, walletAddress }) {
             )}
           </div>
 
-          {renterData.status === 'Available' ? (
+          {!renterData || renterData.status === 'Available' ? (
             <div className="py-12 flex flex-col items-center justify-center text-center gap-4 bg-slate-950/40 border border-dashed border-slate-800 rounded-xl">
               <div className="text-4xl">📭</div>
               <div>
@@ -299,10 +292,12 @@ function Dashboard({ currentTab, walletAddress }) {
                   Bạn chưa có máy chủ nào đang hoạt động
                 </h4>
                 <p className="text-xs text-slate-500 mt-1 max-w-sm">
-                  Hiện tại ví của bạn chưa thực hiện giao dịch cọc thuê máy nào hoặc phiên dùng thử cũ đã hết hạn.
+                  Hiện tại ví của bạn chưa thực hiện giao dịch thuê máy nào hoặc phiên dùng thử cũ đã hết hạn.
                 </p>
               </div>
-              <button onClick={() => navigate('/')} className="mt-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-500/30 hover:border-blue-500 text-blue-400 hover:text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer transition-all shadow-md">
+              <button 
+                onClick={() => navigate('/')} className="mt-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-500/30 hover:border-blue-500 text-blue-400 hover:text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer transition-all shadow-md">
+
                 🛍️ Quay lại Trang chủ để tìm gói sản phẩm phù hợp
               </button>
             </div>
@@ -365,7 +360,7 @@ function Dashboard({ currentTab, walletAddress }) {
               </div>
 
               {/* PHIÊN THỬ NGHIỆM: CHỈ CÒN ĐỒNG Ý HOẶC HỦY BỎ */}
-              {renterData.status === 'Testing' && (
+              {renterData.status === 'Unavailable' && (
                 <div className="flex flex-col gap-3 border-t border-slate-800 pt-4 mt-2">
                   <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
@@ -503,42 +498,39 @@ function Dashboard({ currentTab, walletAddress }) {
               </button>
             </form>
 
-            {/* ==================== KHỐI 2: NHẬT KÝ VẬN HÀNH MÁY CHỦ ==================== */}
+            {/* ==================== ĐÃ FIX LỖI KHỐI 2: NHẬT KÝ VẬN HÀNH MÁY CHỦ ==================== */}
             <div className="bg-slate-950/40 border border-slate-850 rounded-xl p-4 flex flex-col gap-4 w-full">
               <div className="border-b border-slate-900 pb-2 flex flex-col gap-1">
-              {/* Tiêu đề nằm trên 1 hàng ngang và có dấu xanh nhấp nháy */}
                 <div className="flex items-center gap-2">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    <h3 className="text-sm font-bold text-slate-200">
-                      Nhật ký vận hành máy chủ
-                    </h3>
-                  </div>
-                </div>
-
-                {/* Dòng tổng cộng được đưa xuống dòng dưới */}
-                <div>
-                  <span className="text-[10px] bg-slate-900 text-slate-400 px-2 py-0.5 rounded-full font-mono">
-                    Tổng cộng: {myServers.length} máy
                   </span>
+                  <h3 className="text-sm font-bold text-slate-200">
+                    Nhật ký vận hành máy chủ
+                  </h3>
                 </div>
               </div>
 
-              {/* Danh sách máy chủ của ví hiện tại */}
-              <div className="flex flex-col gap-2 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+              <div>
+                <span className="text-[10px] bg-slate-900 text-slate-400 px-2 py-0.5 rounded-full font-mono">
+                  Tổng cộng: {myServers.length} máy
+                </span>
+              </div>
+
+              {/* Danh sách máy chủ được bọc TRONG KHUNG bọc lớn của Nhật ký vận hành */}
+              <div className="flex flex-col gap-2 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar mt-2">
                 {isLoadingProducts ? (
                   <div className="text-center py-6 text-xs text-slate-500 animate-pulse">
                     ⏳ Đang tải danh sách máy chủ...
                   </div>
                 ) : myServers.length === 0 ? (
-                  <div className="text-center py-8 text-xs text-slate-600 border border-dashed border-slate-900 rounded-lg">
+                  // Đã gom vào trong: Dòng chữ thông báo sẽ hiển thị căn giữa hộp ngay ngắn
+                  <div className="text-center py-12 px-4 text-xs text-slate-500 border border-dashed border-slate-800 rounded-lg">
                     📭 Ví của bạn chưa đăng tải cụm máy chủ nào lên hệ thống.
                   </div>
                 ) : (
                   myServers.map((server) => {
-                    // Phân tích trạng thái máy chủ (Available / Unavailable) dựa vào DB
                     const isAvailable = server.status?.toLowerCase() === 'available';
 
                     return (
@@ -568,7 +560,7 @@ function Dashboard({ currentTab, walletAddress }) {
                             </span>
                           </p>
                           
-                          <span className="text-slate-600 font-mono text-[9px] max-w-[150px] truncate">
+                          <span className="text-slate-600 font-mono text-[9px] max-w-[100px] truncate">
                             ID: {server._id || server.id}
                           </span>
                         </div>
@@ -577,11 +569,9 @@ function Dashboard({ currentTab, walletAddress }) {
                   })
                 )}
               </div>
-
-              <div className="text-[10px] text-slate-600 text-center border-t border-slate-900/60 pt-2">
-                🔄 Dữ liệu trạng thái máy chủ đồng bộ thời gian thực với Database
-              </div>
             </div>
+
+          </div>
         </div>
       )}
     </div>
