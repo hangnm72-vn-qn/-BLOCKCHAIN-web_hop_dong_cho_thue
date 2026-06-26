@@ -35,68 +35,6 @@
         "type": "uint256"
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "ownerPayment",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "renterRefund",
-        "type": "uint256"
-      }
-    ],
-    "name": "DiscountAccepted",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "contractId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "discountPercent",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "newPrice",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "reason",
-        "type": "string"
-      }
-    ],
-    "name": "DiscountProposed",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "contractId",
-        "type": "uint256"
-      },
-      {
         "indexed": true,
         "internalType": "address",
         "name": "renter",
@@ -172,6 +110,25 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "PackageRelisted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": false,
         "internalType": "enum SingleServerRental.ServerStatus",
         "name": "oldStatus",
@@ -185,6 +142,25 @@
       }
     ],
     "name": "PackageStatusChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "PackageUnlisted",
     "type": "event"
   },
   {
@@ -350,19 +326,6 @@
         "type": "uint256"
       }
     ],
-    "name": "acceptDiscount",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_contractId",
-        "type": "uint256"
-      }
-    ],
     "name": "autoCompleteRental",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -377,6 +340,19 @@
       }
     ],
     "name": "autoConfirmAfterDeadline",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_contractId",
+        "type": "uint256"
+      }
+    ],
+    "name": "cancelByRenter",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -481,16 +457,6 @@
         "internalType": "bool",
         "name": "renterReportedIssue",
         "type": "bool"
-      },
-      {
-        "internalType": "uint256",
-        "name": "proposedDiscountPercent",
-        "type": "uint256"
-      },
-      {
-        "internalType": "string",
-        "name": "discountReason",
-        "type": "string"
       }
     ],
     "stateMutability": "view",
@@ -593,16 +559,6 @@
             "internalType": "bool",
             "name": "renterReportedIssue",
             "type": "bool"
-          },
-          {
-            "internalType": "uint256",
-            "name": "proposedDiscountPercent",
-            "type": "uint256"
-          },
-          {
-            "internalType": "string",
-            "name": "discountReason",
-            "type": "string"
           }
         ],
         "internalType": "struct SingleServerRental.RentalContract",
@@ -806,37 +762,8 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_contractId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_discountPercent",
-        "type": "uint256"
-      },
-      {
-        "internalType": "string",
-        "name": "_reason",
-        "type": "string"
-      }
-    ],
-    "name": "proposeDiscountForIssue",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_contractId",
-        "type": "uint256"
-      }
-    ],
-    "name": "rejectDiscount",
+    "inputs": [],
+    "name": "relistPackage",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -909,6 +836,13 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "unlistPackage",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
