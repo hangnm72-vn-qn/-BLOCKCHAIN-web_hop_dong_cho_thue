@@ -48,7 +48,7 @@ function Dashboard({ currentTab }) {
 
   // timerType cho biết đồng hồ hiện tại đang là loại nào.
   // none   = chưa có phiên thuê.
-  // trial  = đang ở thời gian thử nghiệm 5 phút.
+  // trial  = đang ở thời gian thử nghiệm 10 phút.
   // rental = đang ở thời gian thuê chính thức do khách chọn.
   const [timerType, setTimerType] = useState('none');
 
@@ -239,12 +239,12 @@ function Dashboard({ currentTab }) {
         const fallbackTimeLeft = Number(data?.timeLeft ?? 0);
 
         if ((apiStatus === 'Pending' || apiStatus === 'Testing') && trialTimeLeft > 0) {
-          // Giai đoạn thử nghiệm 5 phút.
+          // Giai đoạn thử nghiệm 10 phút.
           // Ưu tiên trialTimeLeft; nếu chưa có thì dùng timeLeft.
           const displayTimeLeft = trialTimeLeft;
 
           if (displayTimeLeft <= 0) {
-            // Nếu hết 5 phút mà backend chưa chuyển Active thì không tự đổi tiền ở frontend.
+            // Nếu hết 10 phút mà backend chưa chuyển Active thì không tự đổi tiền ở frontend.
             // Backend/contract nên tự xử lý nhánh "im lặng xem như OK".
             // Frontend chỉ chờ lần gọi API tiếp theo trả Active hoặc Completed.
             setTimeLeft(0);
@@ -260,7 +260,7 @@ function Dashboard({ currentTab }) {
             status: 'Testing',
           }));
 
-          // Phiên thử nghiệm 5 phút: cảnh báo khi còn dưới 1 phút.
+          // Phiên thử nghiệm 10 phút: cảnh báo khi còn dưới 1 phút.
           if (displayTimeLeft <= 60 && displayTimeLeft > 0) {
             setShowToast(true);
           } else {
@@ -694,7 +694,7 @@ function Dashboard({ currentTab }) {
                   : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
                 }`}>
                 {renterData.status === 'Testing'
-                  ? 'Thử nghiệm (5p)'
+                  ? 'Thử nghiệm (10p)'
                   : renterData.status === 'Active'
                     ? 'Active'
                     : 'Đang Khiếu Nại'}
