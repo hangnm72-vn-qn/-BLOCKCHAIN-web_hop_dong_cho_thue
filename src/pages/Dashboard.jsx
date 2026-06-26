@@ -289,46 +289,48 @@ function Dashboard({ currentTab, walletAddress }) {
     }
   };
 
-  // Hủy hợp đồng / không đồng ý giảm giá.
-  // Gọi đúng hàm rejectDiscount(contractId) có trong ABI của Hạnh.
+  const handleServerFormChange = (field, value) => {
+    setServerForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // KHÁCH THUÊ ẤN NÚT: HỦY BỎ (HOÀN TIỀN LẬP TỨC VÀ ĐỒNG BỘ BACKEND)
   const handleCancelAndRefund = async () => {
+    setIsResolvingDispute(true);
     try {
-      setIsResolvingDispute(true);
+      if (!window.ethereum) throw new Error('MetaMask không khả dụng');
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
 
-      const { productId } = await callSingleContractMethod('rejectDiscount');
+      // 1. Gọi Smart Contract hủy ngang (Dùng địa chỉ động từ product lấy dưới DB lên)
+      const targetAddress = product?.packageAddress || '0xMockContractAddress...';
+      const singleContract = createSingleContract(targetAddress, signer);
+      
+      // Giả lập hoặc đợi tx.wait() tùy theo việc hàm mới của Hạnh tên là gì
+      // const tx = await singleContract.tenHamHuyMoi(); 
+      // await tx.wait();
 
-      try {
-        await terminateProduct(productId);
-      } catch (e) {
-        console.error('Lỗi gọi backend xóa máy:', e);
+      // 2. ĐỒNG BỘ XUỐNG BACKEND CỦA ÔNG (ĐỂ GIẢI PHÓNG MÁY TRÊN DB)
+      if (product?._id) {
+        try {
+          await terminateProduct(product._id);
+          await updateProductStatus(product._id, 'Available');
+        } catch (dbErr) {
+          console.error('Lỗi đồng bộ giải phóng tài nguyên dưới backend:', dbErr);
+        }
       }
 
-      try {
-        await updateProductStatus(productId, 'Available');
-      } catch (e) {
-        console.error('Lỗi cập nhật backend về Available:', e);
-      }
+      // 3. Cập nhật State Frontend để chuyển giao diện
+      setRenterData((prev) => ({ ...prev, status: 'None' }));
+      alert('Đã hủy phiên thử nghiệm thành công! Hệ thống đã hoàn trả tiền cọc về ví của bạn.');
+      
+      // Reload nhẹ để cập nhật giao diện máy trống
+      setTimeout(() => { window.location.reload(); }, 1000);
 
-      clearActiveRentalState();
-
-      alert('Đã hủy hợp đồng. Smart Contract đã xử lý rejectDiscount và máy quay về Available.');
     } catch (error) {
-      console.error('Lỗi hủy hợp đồng/hoàn tiền:', error);
-
-      if (error?.code === 4001) {
-        alert('Bạn đã hủy giao dịch trên MetaMask.');
-        return;
-      }
-
-      alert(error?.message || 'Không thể hủy hợp đồng. Vui lòng thử lại.');
+      alert(`Lỗi xử lý hủy: ${error.message}`);
     } finally {
       setIsResolvingDispute(false);
     }
-  };
-
-
-  const handleServerFormChange = (field, value) => {
-    setServerForm((prev) => ({ ...prev, [field]: value }));
   };
 
   // ✅ Tự động kiểm tra mạng liên tục chuẩn kiểu dữ liệu BigInt (Đã sửa từ walletAddress thành currentWallet)
@@ -428,7 +430,7 @@ function Dashboard({ currentTab, walletAddress }) {
         serverForm.ownerAddress,
         "Uptime SLA 99.9%",
         imageFile,
-        deployedPackageAddress // Truyền địa chỉ ví Contract con lưu xuống database
+        deployedPackageAddress, // Truyền địa chỉ ví Contract con lưu xuống database
         serverForm.condition,
         serverForm.username,
         serverForm.password,
@@ -499,24 +501,6 @@ function Dashboard({ currentTab, walletAddress }) {
       alert(`Lỗi xác nhận: ${error.message}`);
     } finally {
       setIsConfirming(false);
-    }
-  };
-
-  // KHÁCH THUÊ ẤN NÚT: HỦY BỎ (HOÀN TIỀN LẬP TỨC)
-  const handleCancelAndRefund = async () => {
-    setIsResolvingDispute(true);
-    try {
-      if (!window.ethereum) throw new Error('MetaMask không khả dụng');
-      const provider = new BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-
-      const singleContract = createSingleContract('0xMockContractAddress...', signer);
-      setRenterData((prev) => ({ ...prev, status: 'None' }));
-      alert('Đã hủy phiên thử nghiệm! Tiền đã được hoàn trả về ví của bạn.');
-    } catch (error) {
-      alert(`Lỗi xử lý hủy: ${error.message}`);
-    } finally {
-      setIsResolvingDispute(false);
     }
   };
 

@@ -103,13 +103,16 @@ io.on('connection', (socket) => {
   console.log('⚡ Có thiết bị kết nối Socket thành công: ', socket.id);
 });
 
-// ⏱️ CRON JOB quét thời gian thuê máy
+// ⏱️ CRON JOB QUÉT THỜI GIAN THUÊ MÁY (ĐÃ ĐỒNG BỘ TRẠNG THÁI MỚI)
+// ==========================================
 cron.schedule('* * * * *', async () => {
   console.log('⏳ Cron Job đang quét các hệ thống máy chủ đang hoạt động...');
   try {
     const now = new Date();
     const fifteenMinutesInMs = 15 * 60 * 1000;
-    const activeProducts = await Product.find({ status: { $in: ['Pending', 'Rented'] } });
+    
+    // 🔥 SỬA: Tìm các máy đang bị chiếm dụng (Unavailable) thay vì trạng thái cũ
+    const activeProducts = await Product.find({ status: 'Unavailable' });
 
     activeProducts.forEach(product => {
       if (product.updatedAt) {
@@ -137,35 +140,31 @@ cron.schedule('* * * * *', async () => {
 // 🚀 KHU VỰC CÁC ROUTE ĐƯỜNG DẪN API 🚀
 // ==========================================
 
-// 1. API GET lấy toàn bộ danh sách máy chủ
+// 1. API GET lấy toàn bộ danh sách máy chủ (🔥 ĐÃ SỬA: Ẩn mật khẩu để bảo mật)
 app.get('/api/products', async (req, res) => {
   try {
-    const products = await Product.find({});
+    const products = await Product.find({}).select('-password'); // Giấu password
     res.status(200).json({ success: true, data: products });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi lấy danh sách máy chủ.', error: error.message });
   }
 });
 
-// 2. API POST Đăng máy chủ mới - PHIÊN BẢN CHUẨN ĐỒNG BỘ WEB3 + BACKEND
+// 2. API POST Đăng máy chủ mới (🔥 ĐÃ SỬA: Nhận thêm username, password, condition từ form)
 app.post('/api/products', (req, res, next) => {
-  // 🔥 SỬA LỖI UPLOAD: Chuyển sang .single('image') hoặc sử dụng .any() để chấp nhận mọi key ảnh từ Frontend gửi lên
   uploadCloud.any()(req, res, function (err) {
     if (err) {
-      console.log("⚠️ LỖI UPLOAD CLOUDINARY CHI TIẾT TẠI ĐÂY NÈ ÔNG CHÁU ƠI:", err);
+      console.log("⚠️ LỖI UPLOAD CLOUDINARY:", err);
     }
     next();
   });
 }, async (req, res) => {
   try {
-    // Log thử dữ liệu text nhận từ Frontend
     console.log("📩 Dữ liệu nhận từ req.body:", req.body);
-    console.log("📸 Danh sách file nhận từ req.files:", req.files);
 
-    // 🔥 SỬA LỖI THIẾU BIẾN: Bốc tách thêm 'packageAddress' từ req.body gửi lên
-    const { title, pricePerHour, ownerAddress, packageAddress } = req.body;
+    // Bốc tách thêm các trường mới theo form thiết kế của Ân
+    const { title, pricePerHour, ownerAddress, packageAddress, username, password, condition } = req.body;
     
-    // Kiểm tra thêm điều kiện phải có packageAddress mới cho qua
     if (!title || !pricePerHour || !ownerAddress || !packageAddress) {
       return res.status(400).json({ 
         success: false, 
@@ -174,98 +173,78 @@ app.post('/api/products', (req, res, next) => {
     }
 
     let imageUrls = [];
-    // Đồng bộ cách lấy file từ uploadCloud.any()
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
-        imageUrls.push(file.path); // Lấy link ảnh từ Cloudinary trả về
+        imageUrls.push(file.path);
       });
     } else {
-      // Ảnh mặc định cấu hình đẹp mắt từ Unsplash nếu không upload được file
       imageUrls.push("https://images.unsplash.com/photo-1600132806370-bf17e65e942f?q=80&w=600&auto=format&fit=crop");
     }
 
-    // Tiến hành tạo bản ghi lưu vào MongoDB Atlas
     const newProduct = new Product({
       title: title,
       description: req.body.description || "Máy chủ cấu hình cao phục vụ AI và ảo hóa.",
-      condition: req.body.condition || "Uptime SLA 99.99% - Băng thông 1Gbps không giới hạn",
+      condition: condition || "Uptime SLA 99.99% - Băng thông 1Gbps không giới hạn",
       pricePerHour: Number(pricePerHour),
       depositAmount: Number(req.body.depositAmount || 0),
       ownerAddress: ownerAddress.trim().toLowerCase(),
-      
-      // 🔥 SỬA CHỖ NÀY: Nạp chính xác địa chỉ Contract con vào MongoDB để hết lỗi Validation Required!
       packageAddress: packageAddress.trim(), 
-      
       renterAddress: "",
-      status: "Available",
+      status: "Available", // Mặc định luôn là Available khi tạo mới
       images: imageUrls,
-      rentalDuration: Number(req.body.rentalDuration || 3600)
+      rentalDuration: Number(req.body.rentalDuration || 3600),
+      
+      // Lưu thông tin tài khoản máy chủ vào DB
+      username: username || "root",
+      password: password || "Admin@1234"
     });
 
     await newProduct.save();
-    console.log("✅ Đã lưu sản phẩm mới vào MongoDB thành công:", newProduct.title);
-    
+    console.log("✅ Đã lưu sản phẩm mới kèm Tài khoản thành công!");
     return res.status(201).json({ success: true, data: newProduct });
 
   } catch (error) {
-    console.error("❌ Lỗi sập hệ thống tại API Đăng máy chủ:", error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Lỗi xử lý database hoặc logic server.', 
-      error: error.message 
-    });
+    console.error("❌ Lỗi API Đăng máy chủ:", error);
+    return res.status(500).json({ success: false, message: 'Lỗi xử lý database.', error: error.message });
   }
 });
 
 // 3. API Tìm kiếm gói sản phẩm
 app.get('/api/products/search', searchProducts);
 
-// 4. API Lấy thời gian đếm ngược - BIẾN ĐỔI THEO LOGIC MỚI CỦA NHÓM 2
+// 4. API Lấy thời gian đếm ngược (🔥 ĐÃ SỬA: Tuyệt đối không lưu các status lạ vào DB sản phẩm nữa!)
 app.get('/api/session-time/:productId', async (req, res) => {
   try {
     const product = await Product.findById(req.params.productId);
     if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy thông tin máy chủ" });
 
     const now = new Date();
-    // Lấy mốc thời gian lúc bắt đầu bấm kích hoạt thuê
     const startTime = new Date(product.updatedAt || now); 
-    
-    // Số giây đã trôi qua kể từ khi kích hoạt
     const secondsElapsed = Math.floor((now.getTime() - startTime.getTime()) / 1000);
 
-    const TRIAL_DEFAULT = 300; // 5 phút thử nghiệm = 300 giây
-    const RENTAL_TOTAL = product.rentalDuration || 3600; // Lấy thời gian thuê khách chọn từ database
+    const TRIAL_DEFAULT = 600; // Đổi thành 10 phút thử nghiệm theo cam kết mới = 600 giây
+    const RENTAL_TOTAL = product.rentalDuration || 3600; 
 
     let trialTimeLeft = 0;
     let rentalTimeLeft = 0;
-    let currentStatus = product.status;
+    let currentStatus = product.status; // Mặc định lấy từ DB lên (Available / Unavailable)
 
-    // CHẠY LOGIC CHIA ĐÔI THỜI GIAN:
     if (secondsElapsed < TRIAL_DEFAULT) {
-      // Kịch bản A: Đang trong 5 phút thử nghiệm đầu tiên
       trialTimeLeft = TRIAL_DEFAULT - secondsElapsed;
-      rentalTimeLeft = RENTAL_TOTAL; // Thời gian thuê chính thức chưa bị động vào
-      currentStatus = "Pending";     // Giữ trạng thái Pending
+      rentalTimeLeft = RENTAL_TOTAL;
     } else {
-      // Kịch bản B: Đã dùng hết 5 phút thử nghiệm -> Chuyển sang trừ thời gian thuê chính thức
       trialTimeLeft = 0;
       const rentalTimeUsed = secondsElapsed - TRIAL_DEFAULT;
       rentalTimeLeft = Math.max(0, RENTAL_TOTAL - rentalTimeUsed);
       
       if (rentalTimeLeft > 0) {
-        currentStatus = "Rented"; // Chuyển sang trạng thái Rented (Đang thuê chính thức)
+        currentStatus = "Unavailable"; // Giao diện tự hiểu là đang chạy hợp đồng chính thức
       } else {
-        currentStatus = "Expired"; // Hết sạch cả 2 quỹ thời gian
-      }
-      
-      // Đồng bộ cập nhật trạng thái mới vào database nếu cần thiết
-      if (product.status !== currentStatus && product.status !== "Available") {
-         product.status = currentStatus;
-         await product.save();
+        currentStatus = "Available";   // Tự hiểu là hết hạn
       }
     }
 
-    // Trả về đúng cấu trúc Object JSON như nhóm 2 mong muốn
+    // Trả về cho UI xử lý hiển thị, DB hoàn toàn sạch bóng các status Rented/Expired
     return res.status(200).json({
       trialTimeLeft: trialTimeLeft,
       rentalTimeLeft: rentalTimeLeft,
@@ -277,11 +256,13 @@ app.get('/api/session-time/:productId', async (req, res) => {
   }
 });
 
-// 5. API Cập nhật hàng loạt trạng thái
+// 5. API Cập nhật hàng loạt trạng thái (🔥 ĐÃ SỬA: Thêm bộ lọc chặn status bẩn)
 app.put('/api/products/bulk-status', multer().none(), async (req, res) => {
   try {
     const { ids, status } = req.body; 
-    if (!status) return res.status(400).json({ success: false, message: 'Thiếu trường status!' });
+    if (status !== 'Available' && status !== 'Unavailable') {
+      return res.status(400).json({ success: false, message: 'Chỉ chấp nhận Available hoặc Unavailable!' });
+    }
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ success: false, message: 'Vui lòng truyền một mảng ids' });
     }
@@ -301,7 +282,7 @@ app.get('/api/products/rented-by/:renterAddress', async (req, res) => {
     const { renterAddress } = req.params;
     const myRentals = await Product.find({
       renterAddress: { $regex: new RegExp(`^${renterAddress}$`, "i") },
-      status: { $ne: 'Available' }
+      status: 'Unavailable' // Lọc các máy đang được thuê
     });
 
     const formattedData = myRentals.map(product => {
@@ -333,10 +314,10 @@ app.get('/api/products/owned-by/:ownerAddress', async (req, res) => {
   }
 });
 
-// 8. API Lấy chi tiết 1 máy chủ
+// 8. API Lấy chi tiết 1 máy chủ (🔥 ĐÃ SỬA: Bảo mật ẩn password khi xem công khai)
 app.get('/api/products/:id', async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).select('-password'); // Ẩn mật khẩu
     if (!product) return res.status(404).json({ success: false, message: 'Không tìm thấy máy chủ!' });
     res.status(200).json({ success: true, data: product });
   } catch (error) {
@@ -344,56 +325,82 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
-// 9. API Khởi tạo tài nguyên máy chủ khi được thuê - CẬP NHẬT THEO ĐƠN ĐẶT HÀNG NHÓM 2
+// 9. API Khởi tạo tài nguyên / PROVISION (🔥 ĐÃ SỬA TIÊN QUYẾT: Trả mật khẩu thật + đúng cấu trúc Ân yêu cầu)
 app.post('/api/products/:id/provision', multer().none(), async (req, res) => {
   try {
     const { id } = req.params;
-    // Lấy thêm trường durationInSeconds do khách hàng chọn từ Frontend gửi lên
     const { renterAddress, durationInSeconds } = req.body; 
-    const product = await Product.findById(id);
+    
+    // Tìm máy chủ và khóa trạng thái sang Unavailable ngay lập tức
+    const product = await Product.findByIdAndUpdate(
+      id, 
+      { 
+        status: 'Unavailable',
+        renterAddress: renterAddress || "",
+        rentalDuration: Number(durationInSeconds || 3600),
+        updatedAt: new Date() // Reset mốc tính giờ đếm ngược
+      }, 
+      { new: true }
+    );
+
     if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy gói máy chủ." });
 
-    product.status = 'Pending'; // Bắt đầu ở trạng thái Pending để thử nghiệm
-    if (renterAddress) product.renterAddress = renterAddress;
-    
-    // Lưu số giây thuê chính thức mà khách đã chọn (nếu không truyền mặc định 1 tiếng = 3600s)
-    product.rentalDuration = Number(durationInSeconds || 3600); 
-    
-    // Cập nhật lại mốc thời gian bắt đầu kích hoạt
-    product.updatedAt = new Date(); 
-    
-    await product.save();
+    // ⏱️ LOGIC CRON/TIMEOUT TỰ ĐỘNG XỬ LÝ 10 PHÚT THEO YÊU CẦU MỤC 7
+    setTimeout(async () => {
+      try {
+        const currentProduct = await Product.findById(id);
+        // Sau 10 phút nếu khách không hủy (vẫn là Unavailable), máy chính thức đi vào giai đoạn thuê dài hạn
+        if (currentProduct && currentProduct.status === 'Unavailable') {
+          console.log(`[Hết 10 phút] Máy ${id} vượt qua giai đoạn thử nghiệm thành công.`);
+        }
+      } catch (err) {
+        console.error("Lỗi đếm ngược thử nghiệm:", err);
+      }
+    }, 30 * 1000); // 💡 Đang để 30 giây phục vụ DEMO thực tế trên lớp cho nhanh. Lúc nộp bài sửa thành 10 * 60 * 1000.
 
+    // Trả về chính xác cấu trúc Object JSON lồng data mà Ân yêu cầu [Mục 5]
     return res.status(200).json({ 
       success: true, 
-      message: "Khởi tạo thành công phiên thử nghiệm!", 
-      ipAddress: `192.168.99.${Math.floor(Math.random() * 254)}` 
+      data: {
+        username: product.username || "root",
+        password: product.password || "Admin@1234", // Trả ra mật khẩu chuẩn trong DB
+        ip: `192.168.99.${Math.floor(Math.random() * 254)}`,
+        port: "22"
+      }
     });
+
   } catch (error) {
     return res.status(500).json({ success: false, message: "Lỗi khởi tạo tài nguyên máy chủ." });
   }
 });
 
-// 10. API Giải phóng máy chủ sau khi hết hạn
+// 10. API Giải phóng máy chủ khi khách bấm hủy ngang (Hủy không thuê / hoàn máy)
 app.post('/api/products/:id/terminate', multer().none(), async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findByIdAndUpdate(
+      req.params.id, 
+      { status: 'Available', renterAddress: "" }, 
+      { new: true }
+    );
     if (!product) return res.status(404).json({ success: false, message: "Không tìm thấy máy chủ." });
 
-    product.status = 'Available'; 
-    product.renterAddress = "";   
-    await product.save();
     res.status(200).json({ success: true, message: "Đã giải phóng máy ảo về trạng thái Available!" });
   } catch (error) {
     res.status(500).json({ success: false, message: "Lỗi thu hồi máy." });
   }
 });
 
-// 11. API Thay đổi trạng thái thủ công
+// 11. API Thay đổi trạng thái thủ công (🔥 ĐÃ SỬA: Chặn nghiêm ngặt các status bẩn ngoại trừ 2 cái đã chốt)
 app.put('/api/products/:id/status', multer().none(), async (req, res) => {
   try {
-    const product = await Product.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
+    const { status } = req.body;
+    if (status !== 'Available' && status !== 'Unavailable') {
+      return res.status(400).json({ success: false, message: 'Chỉ chấp nhận truyền Available hoặc Unavailable!' });
+    }
+
+    const product = await Product.findByIdAndUpdate(req.params.id, { status }, { new: true });
     if (!product) return res.status(404).json({ success: false, message: 'Không tìm thấy máy chủ!' });
+    
     res.status(200).json({ success: true, data: product });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi cập nhật trạng thái.' });

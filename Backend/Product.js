@@ -33,7 +33,6 @@ const ProductSchema = new mongoose.Schema({
     type: String, 
     default: 'Available'
   },
-  // ✅ ĐÃ SỬA: Thêm dấu phẩy và xóa timestamps viết nhầm vị trí ở đây
   packageAddress: { 
     type: String, 
     required: true  
@@ -42,8 +41,14 @@ const ProductSchema = new mongoose.Schema({
     type: String,
     default: "Uptime SLA 99.99% - Băng thông 1Gbps không giới hạn - Hỗ trợ kỹ thuật phần cứng 24/7"
   },
+  username: { 
+    type: String 
+  }, 
+  password: { 
+    type: String 
+  },
   
-  // 🌟 ĐÃ THÊM: Thời gian thuê chính thức (lưu bằng giây) phục vụ logic tách luồng thử nghiệm của nhóm 2
+  // 🌟 Thời gian thuê chính thức (lưu bằng giây) phục vụ logic tách luồng thử nghiệm của nhóm 2
   rentalDuration: { 
     type: Number, 
     default: 3600 
@@ -64,10 +69,10 @@ const ProductSchema = new mongoose.Schema({
     } 
   }
 }, {
-  timestamps: true // Định nghĩa timestamps ở đây là chuẩn rồi này!
+  timestamps: true // Định nghĩa cấu hình hệ thống nằm ở đây là chuẩn xác nhất!
 });
 
-// 2. ⭐ ĐÃ SỬA: Tạo biến Product từ Schema để các hàm bên dưới gọi trúng đối tượng truy vấn Database
+// 2. Tạo biến Product từ Schema để các hàm bên dưới gọi trúng đối tượng truy vấn Database
 const Product = mongoose.model('Product', ProductSchema);
 
 // 3. Hàm xử lý API Tìm kiếm gói máy chủ
@@ -86,14 +91,13 @@ const searchProducts = async (req, res) => {
     }
 
     const products = await Product.find(query); 
-    // ⭐ ĐÃ SỬA: Bọc data vào object giống cấu trúc API gốc của hệ thống
     res.status(200).json({ success: true, count: products.length, data: products });
   } catch (error) {
     res.status(500).json({ success: false, message: "Lỗi tìm kiếm", error: error.message });
   }
 };
 
-// 4. ⭐ ĐÃ SỬA: Gộp chung toàn bộ đối tượng cần xuất bản ra ngoài thành một cụm duy nhất
+// 4. Gộp chung toàn bộ đối tượng cần xuất bản ra ngoài thành một cụm duy nhất
 module.exports = {
   Product,
   searchProducts
