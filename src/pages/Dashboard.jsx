@@ -24,12 +24,13 @@ function Dashboard({ currentTab, walletAddress }) {
   // =========================================================
   // 1. STATE QUẢN LÝ PHÍA KHÁCH THUÊ
   // =========================================================
+  // renterData chứa thông tin máy mà khách đang thuê.
   const [renterData, setRenterData] = useState({
-    ip: '34.124.211.85',
-    port: '22',
-    username: 'trustrent_user',
-    password: 'MockPassword2026@',
-    status: 'Testing' // Mặc định để Testing để hiển thị nút Test luồng
+    ip: localStorage.getItem('trustrent.rentalIp') || '',
+    port: localStorage.getItem('trustrent.rentalPort') || '22',
+    username: localStorage.getItem('trustrent.rentalUsername') || '',
+    password: localStorage.getItem('trustrent.rentalPassword') || '',
+    status: 'None'
   });
 
   // =========================================================
@@ -48,10 +49,11 @@ function Dashboard({ currentTab, walletAddress }) {
     title: '',
     description: '',
     pricePerHour: '',
-    ownerAddress: currentWallet,
-    condition: 'Good',
+    condition: '',
     username: '',
     password: '',
+    ownerAddress: currentWallet,
+    condition: 'Good',
   });
 
   const [imageFile, setImageFile] = useState(null);
@@ -62,11 +64,101 @@ function Dashboard({ currentTab, walletAddress }) {
   const [myServers, setMyServers] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
 
-  // Trạng thái chờ giao dịch Blockchain
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [isResolvingDispute, setIsResolvingDispute] = useState(false);
+  // Hàm dọn trạng thái thuê hiện tại ở frontend.
+  // Dùng khi hợp đồng kết thúc, hoàn tiền, hủy hoặc backend báo máy đã Available/Completed.
+  const clearActiveRentalState = () => {
+    setRenterData({
+      ip: '',
+      port: '22',
+      username: '',
+      password: '',
+      status: 'None',
+    });
 
-  // Đồng bộ địa chỉ ví vào Form khi ví thay đổi
+    setLessorData({ status: 'None' });
+    setTimeLeft(0);
+    setTimerType('none');
+    setShowToast(false);
+    setShowNegotiation(false);
+    setDiscountOffered(false);
+
+    setActiveProductId(null);
+    setActiveContractId(null);
+    setActivePackageAddress(null);
+
+    localStorage.removeItem('trustrent.activeProductId');
+    localStorage.removeItem('trustrent.activeContractId');
+    localStorage.removeItem('trustrent.activePackageAddress');
+    localStorage.removeItem('trustrent.rentalIp');
+    localStorage.removeItem('trustrent.rentalPort');
+    localStorage.removeItem('trustrent.rentalUsername');
+    localStorage.removeItem('trustrent.rentalPassword');
+  };
+
+  // Hàm lấy thông tin phiên thuê đang active.
+  // Dashboard cần đủ 3 thông tin để gọi đúng smart contract:
+  // activeProductId       = ID sản phẩm trong backend.
+  // activeContractId      = ID phiên thuê trong contract.
+  // activePackageAddress  = địa chỉ contract gói máy.
+  const getActiveRentalInfo = () => {
+    return {
+      productId: activeProductId || localStorage.getItem('trustrent.activeProductId'),
+      contractId: activeContractId || localStorage.getItem('trustrent.activeContractId'),
+      packageAddress: activePackageAddress || localStorage.getItem('trustrent.activePackageAddress'),
+    };
+  };
+
+  // Hàm gọi một method trên SingleServerRental/RentalContract.
+  // Hiện tại dùng cho 3 hàm có trong ABI:
+  // confirmRental   = khách xác nhận máy hoạt động tốt.
+  // acceptDiscount  = khách đồng ý giảm giá 20%.
+  // rejectDiscount  = hủy / từ chối giảm giá.
+  const callSingleContractMethod = async (methodName) => {
+    const { productId, contractId, packageAddress } = getActiveRentalInfo();
+
+    if (!productId) {
+      throw new Error('Không tìm thấy sản phẩm đang thuê.');
+    }
+
+    if (!contractId) {
+      throw new Error('Không tìm thấy contractId của phiên thuê. Vui lòng kiểm tra bước thuê máy trong ProductDetail.');
+    }
+
+    if (!packageAddress) {
+      throw new Error('Không tìm thấy địa chỉ contract gói máy. Vui lòng kiểm tra bước thuê máy trong ProductDetail.');
+    }
+
+    if (!window.ethereum) {
+      throw new Error('Vui lòng cài đặt MetaMask để xác nhận giao dịch.');
+    }
+
+    const provider = new BrowserProvider(window.ethereum);
+    const network = await provider.getNetwork();
+
+    if (network.chainId !== SEPOLIA_CHAIN_ID) {
+      throw new Error('Vui lòng chuyển MetaMask sang mạng Sepolia.');
+    }
+
+    const signer = await provider.getSigner();
+
+    // Đây là contract gói máy cụ thể, không phải Factory.
+    const single = createSingleContract(packageAddress, signer);
+
+    if (typeof single[methodName] !== 'function') {
+      throw new Error(`Smart contract hiện chưa có hàm ${methodName}(). Kiểm tra lại ABI hoặc tên hàm của Hạnh.`);
+    }
+
+    const tx = await single[methodName](Number(contractId));
+    await tx.wait();
+
+    return {
+      productId,
+      contractId,
+      packageAddress,
+    };
+  };
+
+  // Đồng bộ địa chỉ ví vào form khi người dùng đổi ví.
   useEffect(() => {
     if (currentWallet) {
       setServerForm((prev) => ({ ...prev, ownerAddress: currentWallet }));
@@ -114,7 +206,7 @@ function Dashboard({ currentTab, walletAddress }) {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-// Lấy danh sách máy chủ do ví này đăng
+  // Lấy danh sách máy chủ do ví này đăng
   const fetchLessorProducts = async () => {
     if (!currentWallet) return;
     setIsLoadingProducts(true);
@@ -128,19 +220,125 @@ function Dashboard({ currentTab, walletAddress }) {
     }
   };
 
-  // Xử lý thay đổi dữ liệu Form đăng máy
+  // Khi khách bấm "Báo lỗi".
+  // Trạng thái chuyển sang Dispute, mở khung thương lượng.
+  const handleReportError = async () => {
+    try {
+      setRenterData((prev) => ({ ...prev, status: 'Dispute' }));
+      setLessorData((prev) => ({ ...prev, status: 'Dispute' }));
+      setShowNegotiation(true);
+      setDiscountOffered(false);
+
+      if (activeProductId) {
+        try {
+          await updateProductStatus(activeProductId, 'Unavailable');
+        } catch (e) {
+          console.error('Lỗi cập nhật backend sang Dispute:', e);
+        }
+      }
+
+      alert('Đã kích hoạt trạng thái tranh chấp giữa Khách thuê và Chủ máy.');
+    } catch (error) {
+      console.error('Lỗi báo lỗi:', error);
+      alert('Không thể báo lỗi. Vui lòng thử lại.');
+    }
+  };
+
+  // Chủ máy bấm "Đề xuất giảm giá 20%".
+  // Chủ máy chỉ đề xuất, khách phải đồng ý thì contract mới xử lý acceptDiscount.
+  const handleProposeDiscount = () => {
+    setDiscountOffered(true);
+    setShowNegotiation(true);
+    alert('Chủ máy đã đề xuất giảm giá 20%. Vui lòng đợi khách thuê đồng ý.');
+  };
+
+  // Khách đồng ý giảm 20%.
+  // Gọi đúng hàm acceptDiscount(contractId) có trong ABI của Hạnh.
+  const handleAcceptDiscount = async () => {
+    try {
+      setIsResolvingDispute(true);
+
+      const { productId } = await callSingleContractMethod('acceptDiscount');
+
+      try {
+        await terminateProduct(productId);
+      } catch (e) {
+        console.error('Lỗi gọi backend thu hồi máy:', e);
+      }
+
+      try {
+        await updateProductStatus(productId, 'Available');
+      } catch (e) {
+        console.error('Lỗi cập nhật backend về Available:', e);
+      }
+
+      clearActiveRentalState();
+
+      alert('Đã đồng ý giảm 20%. Smart Contract đã xử lý acceptDiscount và máy đã được giải phóng.');
+    } catch (error) {
+      console.error('Lỗi đồng ý giảm giá:', error);
+
+      if (error?.code === 4001) {
+        alert('Bạn đã hủy giao dịch trên MetaMask.');
+        return;
+      }
+
+      alert(error?.message || 'Không thể xử lý giảm giá. Vui lòng thử lại.');
+    } finally {
+      setIsResolvingDispute(false);
+    }
+  };
+
+  // Hủy hợp đồng / không đồng ý giảm giá.
+  // Gọi đúng hàm rejectDiscount(contractId) có trong ABI của Hạnh.
+  const handleCancelAndRefund = async () => {
+    try {
+      setIsResolvingDispute(true);
+
+      const { productId } = await callSingleContractMethod('rejectDiscount');
+
+      try {
+        await terminateProduct(productId);
+      } catch (e) {
+        console.error('Lỗi gọi backend xóa máy:', e);
+      }
+
+      try {
+        await updateProductStatus(productId, 'Available');
+      } catch (e) {
+        console.error('Lỗi cập nhật backend về Available:', e);
+      }
+
+      clearActiveRentalState();
+
+      alert('Đã hủy hợp đồng. Smart Contract đã xử lý rejectDiscount và máy quay về Available.');
+    } catch (error) {
+      console.error('Lỗi hủy hợp đồng/hoàn tiền:', error);
+
+      if (error?.code === 4001) {
+        alert('Bạn đã hủy giao dịch trên MetaMask.');
+        return;
+      }
+
+      alert(error?.message || 'Không thể hủy hợp đồng. Vui lòng thử lại.');
+    } finally {
+      setIsResolvingDispute(false);
+    }
+  };
+
+
   const handleServerFormChange = (field, value) => {
     setServerForm((prev) => ({ ...prev, [field]: value }));
   };
 
-// ✅ Tự động kiểm tra mạng liên tục chuẩn kiểu dữ liệu BigInt (Đã sửa từ walletAddress thành currentWallet)
+  // ✅ Tự động kiểm tra mạng liên tục chuẩn kiểu dữ liệu BigInt (Đã sửa từ walletAddress thành currentWallet)
   useEffect(() => {
     const checkNetworkRealTime = async () => {
       if (window.ethereum) {
         try {
           const provider = new BrowserProvider(window.ethereum);
           const network = await provider.getNetwork();
-          
+
           // Sử dụng BigInt() để ép kiểu network.chainId đồng bộ với SEPOLIA_CHAIN_ID (11155111n)
           if (BigInt(network.chainId) === SEPOLIA_CHAIN_ID) {
             setSubmitMessage(''); // Tự động xóa chữ đỏ ngay lập tức khi mạng đúng
@@ -152,7 +350,7 @@ function Dashboard({ currentTab, walletAddress }) {
         }
       }
     };
-    
+
     checkNetworkRealTime();
 
     // Lắng nghe trực tiếp sự kiện đổi mạng từ MetaMask ngay tại Dashboard
@@ -215,7 +413,7 @@ function Dashboard({ currentTab, walletAddress }) {
 
       // 2. Hứng lấy địa chỉ Contract Package con vừa được Blockchain sinh ra từ Logs
       const deployedPackageAddress = receipt.logs[0]?.address || receipt.to;
-      
+
       if (!deployedPackageAddress) {
         throw new Error("Blockchain không trả về địa chỉ Package Address hợp lệ!");
       }
@@ -228,14 +426,18 @@ function Dashboard({ currentTab, walletAddress }) {
         `Cấu hình: ${serverForm.cpu || '4 vCPU'}, ${serverForm.ram || '16GB RAM'}, ${serverForm.gpu || 'Không có'}. Tài khoản: ${serverForm.username}`,
         serverForm.pricePerHour,
         serverForm.ownerAddress,
-        "Uptime SLA 99.9%", 
+        "Uptime SLA 99.9%",
         imageFile,
         deployedPackageAddress // Truyền địa chỉ ví Contract con lưu xuống database
+        serverForm.condition,
+        serverForm.username,
+        serverForm.password,
+        imageFile
       );
 
       if (backendResult.success) {
         setSubmitMessage('🎉 Đăng máy chủ thành công và đồng bộ Blockchain hoàn tất!');
-        
+
         // Đợi 1.5 giây để người dùng kịp nhìn thấy thông báo thành công rồi làm mới danh sách dữ liệu
         setTimeout(async () => {
           await fetchLessorProducts();
@@ -245,6 +447,33 @@ function Dashboard({ currentTab, walletAddress }) {
         setSubmitMessage('Lưu dữ liệu máy chủ lên Backend thất bại!');
       }
 
+      // Refresh lại danh sách máy chủ của ví hiện tại.
+      if (currentWallet) {
+        try {
+          const data = await getProductsByOwner(currentWallet);
+          setMyServers(data || []);
+        } catch (err) {
+          console.error('Lỗi refresh danh sách máy sau khi tạo:', err);
+        }
+      }
+
+      setSubmitMessage('Đã thêm máy chủ thành công trên smart contract và backend. Đang chuyển về trang chủ...');
+
+      setServerForm({
+        title: '',
+        description: '',
+        pricePerHour: '',
+        condition: '',
+        username: '',
+        password: '',
+        ownerAddress: currentWallet,
+      });
+
+      setImageFile(null);
+
+      setTimeout(() => {
+        navigate('/');
+      }, 1200);
     } catch (error) {
       console.error("Lỗi trong quá trình đăng máy chủ:", error);
       setSubmitMessage(error.reason || error.message || 'Có lỗi xảy ra, vui lòng thử lại!');
@@ -332,11 +561,10 @@ function Dashboard({ currentTab, walletAddress }) {
 
             {/* Chỉ hiển thị Badge trạng thái khi có máy đang hoạt động/thử nghiệm thực tế */}
             {renterData && renterData.status && renterData.status !== 'Available' && (
-              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                renterData.status === 'Unavailable' 
-                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                  : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500'
-              }`}>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${renterData.status === 'Unavailable'
+                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500'
+                }`}>
                 {renterData.status === 'Unavailable' ? 'Thử nghiệm (10p)' : 'Unavailable (Đang thuê)'}
               </span>
             )}
@@ -353,7 +581,7 @@ function Dashboard({ currentTab, walletAddress }) {
                   Hiện tại ví của bạn chưa thực hiện giao dịch thuê máy nào hoặc phiên dùng thử cũ đã hết hạn.
                 </p>
               </div>
-              <button 
+              <button
                 onClick={() => navigate('/')} className="mt-2 bg-blue-600/20 hover:bg-blue-600 border border-blue-500/30 hover:border-blue-500 text-blue-400 hover:text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer transition-all shadow-md">
 
                 🛍️ Quay lại Trang chủ để tìm gói sản phẩm phù hợp
@@ -514,23 +742,44 @@ function Dashboard({ currentTab, walletAddress }) {
 
                 <div>
                   <label className="text-slate-400 block mb-1">Username Máy chủ</label>
-                  <input 
-                    type="text" 
-                    value={serverForm.username || ''} 
-                    onChange={(e) => handleServerFormChange('username', e.target.value)} 
-                    placeholder="Ví dụ: administrator hoặc root" 
-                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500" 
+                  <input
+                    type="text"
+                    value={serverForm.username || ''}
+                    onChange={(e) => handleServerFormChange('username', e.target.value)}
+                    placeholder="Ví dụ: administrator hoặc root"
+                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
                 <div>
                   <label className="text-slate-400 block mb-1">Password Máy chủ</label>
-                  <input 
-                    type="password" 
-                    value={serverForm.password || ''} 
-                    onChange={(e) => handleServerFormChange('password', e.target.value)} 
-                    placeholder="Nhập mật khẩu truy cập máy" 
-                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500" 
+                  <input
+                    type="password"
+                    value={serverForm.password || ''}
+                    onChange={(e) => handleServerFormChange('password', e.target.value)}
+                    placeholder="Nhập mật khẩu truy cập máy"
+                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 block mb-1">Username đăng nhập máy</label>
+                  <input
+                    type="text"
+                    value={serverForm.username}
+                    onChange={(e) => handleServerFormChange('username', e.target.value)}
+                    placeholder="Ví dụ: root hoặc ubuntu"
+                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-400 block mb-1">Password đăng nhập máy</label>
+                  <input
+                    type="text"
+                    value={serverForm.password}
+                    onChange={(e) => handleServerFormChange('password', e.target.value)}
+                    placeholder="Nhập mật khẩu máy chủ"
+                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
@@ -547,20 +796,20 @@ function Dashboard({ currentTab, walletAddress }) {
 
               {/* 🌟 ĐÃ SỬA: Chỉ hiển thị chữ đỏ nếu THỰC SỰ SAI MẠNG và ĐỒNG BỘ ẩn/hiện logic */}
               {submitMessage && (
-             <p className={`text-xs mt-2 text-center font-semibold ${submitMessage.includes('Sepolia') ? 'text-rose-400' : 'text-emerald-400'}`}>
-             {submitMessage}
-            </p>
-            )}
+                <p className={`text-xs mt-2 text-center font-semibold ${submitMessage.includes('Sepolia') ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  {submitMessage}
+                </p>
+              )}
 
-            <button 
-            type="button" 
-            onClick={handleCreateServer} 
-            // 🌟 ĐÃ SỬA: Khóa luôn nút bấm không cho nhấn nếu ví đang ở sai mạng
-            disabled={isSubmitting || submitMessage.includes('Vui lòng chuyển mạng')} 
-            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors cursor-pointer mt-2 shadow-lg shadow-emerald-950/20"
-            >
-            {isSubmitting ? 'Đang kích hoạt gói...' : 'Xác thực & Thêm máy lên Trang chủ'}
-            </button>
+              <button
+                type="button"
+                onClick={handleCreateServer}
+                // 🌟 ĐÃ SỬA: Khóa luôn nút bấm không cho nhấn nếu ví đang ở sai mạng
+                disabled={isSubmitting || submitMessage.includes('Vui lòng chuyển mạng')}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors cursor-pointer mt-2 shadow-lg shadow-emerald-950/20"
+              >
+                {isSubmitting ? 'Đang kích hoạt gói...' : 'Xác thực & Thêm máy lên Trang chủ'}
+              </button>
             </form>
 
             {/* ==================== ĐÃ FIX LỖI KHỐI 2: NHẬT KÝ VẬN HÀNH MÁY CHỦ ==================== */}
@@ -608,11 +857,10 @@ function Dashboard({ currentTab, walletAddress }) {
                             🖥️ {server.title}
                           </span>
 
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase tracking-wider ${
-                            isAvailable
-                              ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
-                              : 'text-rose-400 bg-rose-500/10 border border-rose-500/20'
-                          }`}>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase tracking-wider ${isAvailable
+                            ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
+                            : 'text-rose-400 bg-rose-500/10 border border-rose-500/20'
+                            }`}>
                             {isAvailable ? 'Available' : 'Unavailable'}
                           </span>
                         </div>
@@ -624,7 +872,7 @@ function Dashboard({ currentTab, walletAddress }) {
                               {server.pricePerHour} Token/giờ
                             </span>
                           </p>
-                          
+
                           <span className="text-slate-600 font-mono text-[9px] max-w-[100px] truncate">
                             ID: {server._id || server.id}
                           </span>

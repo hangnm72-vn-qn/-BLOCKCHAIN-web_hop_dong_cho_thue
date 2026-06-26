@@ -35,7 +35,7 @@ function ProductDetailWeb3Synced() {
       {/* CỘT TRÁI */}
       <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl h-[500px]">
         <img
-          src={product.images && product.images[0] ? product.images[0] : ""}
+          src={product.images?.[0] || 'https://via.placeholder.com/600x500?text=No+Image'}
           alt={product.title}
           className="w-full h-full object-cover"
         />
@@ -141,7 +141,7 @@ function ProductDetailWeb3Synced() {
                     await approveTx.wait();
 
                     setMessage('Giao dịch hoàn tất! Đang tạo lập mã hợp đồng...');
-                    
+
                     // 🎯 FIX CHỮA CHÁY: Tạo ID ngẫu nhiên bypass lỗi decode ví cá nhân
                     const fakeContractId = Math.floor(Date.now() / 1000) % 10000;
                     setContractId(fakeContractId);
@@ -149,8 +149,28 @@ function ProductDetailWeb3Synced() {
                     const renterAddress = await signer.getAddress();
                     try {
                       const prov = await provisionProduct(product._id, renterAddress);
-                      if (prov && prov.data && prov.data.credentials) {
-                        setCredentials(prov.data.credentials);
+
+                      if (prov && prov.success) {
+                        const data = prov.data || prov;
+
+                        const rentalInfo = {
+                          message: data.message || prov.message || 'Máy đã được bàn giao thành công.',
+                          ipAddress: data.ipAddress || data.ip || '',
+                          port: data.port || '22',
+                          username: data.username || '',
+                          password: data.password || '',
+                        };
+
+                        setCredentials(rentalInfo);
+
+                        localStorage.setItem('trustrent.activeProductId', product._id);
+                        localStorage.setItem('trustrent.rentalIp', rentalInfo.ipAddress);
+                        localStorage.setItem('trustrent.rentalPort', rentalInfo.port);
+                        localStorage.setItem('trustrent.rentalUsername', rentalInfo.username);
+                        localStorage.setItem('trustrent.rentalPassword', rentalInfo.password);
+
+                        await updateProductStatus(product._id, 'Unavailable');
+                        setProduct(prev => ({ ...prev, status: 'Unavailable' }));
                       }
                     } catch (e) {
                       console.error("Lỗi gọi API kích hoạt VPS của Ân:", e);
@@ -181,75 +201,188 @@ function ProductDetailWeb3Synced() {
           {credentials && (
             <div className="mt-3 bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm">
               <h4 className="text-xs font-bold text-slate-300 mb-2">Thông tin bàn giao VPS</h4>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>IP: <span className="font-mono">{credentials.ip}</span></div>
-                <div>Port: <span className="font-mono">{credentials.port}</span></div>
-                <div>Username: <span className="font-mono">{credentials.username}</span></div>
-                <div>Password: <span className="font-mono">{credentials.password}</span></div>
+
+              <div className="text-xs space-y-2">
+                <div className="text-emerald-400 font-medium">
+                  ✨ {credentials.message}
+                </div>
+
+                <div>
+                  Địa chỉ IP kết nối:{' '}
+                  <span className="font-mono text-blue-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                    {credentials.ipAddress || 'Đang cập nhật'}
+                  </span>
+                </div>
+
+                <div>
+                  Port:{' '}
+                  <span className="font-mono text-blue-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                    {credentials.port || '22'}
+                  </span>
+                </div>
+
+                <div>
+                  Username:{' '}
+                  <span className="font-mono text-emerald-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                    {credentials.username || 'Đang cập nhật'}
+                  </span>
+                </div>
+
+                <div>
+                  Password:{' '}
+                  <span className="font-mono text-amber-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                    {credentials.password || 'Đang cập nhật'}
+                  </span>
+                </div>
               </div>
             </div>
-          )}
+          )
+          }
 
           {/* 3 NÚT CHỨC NĂNG SAU KHI THUÊ XONG */}
-          {contractId !== null && (
-            <div className="mt-3 flex gap-2">
-              <Button
-                variant="secondary"
-                className="flex-1 bg-emerald-950/40 text-emerald-400 border border-emerald-900/60"
-                onClick={async () => {
-                  try {
-                    setIsProcessing(true);
-                    setMessage('Đang đồng bộ trạng thái hoạt động...');
-                    await updateProductStatus(product._id, 'Active');
-                    setMessage('Xác nhận OK thành công! Máy đã chuyển sang trạng thái Active.');
-                  } catch (e) {
-                    setMessage('Lỗi khi cập nhật DB: ' + e.message);
-                  } finally { setIsProcessing(false); }
-                }}
-              >
-                Xác nhận OK
-              </Button>
+          {
+            contractId !== null && (
+              <div className="mt-3 flex gap-2">
+                <Button
+                  variant="secondary"
+                  className="flex-1 bg-emerald-950/40 text-emerald-400 border border-emerald-900/60"
+                  onClick={async () => {
+                    try {
+                      setIsProcessing(true);
+                      setMessage('Gửi xác nhận OK lên chain...');
+                      const provider = new BrowserProvider(window.ethereum);
+                      const signer = await provider.getSigner();
+                      const factory = createRentalFactoryContract(signer);
 
-              <Button
-                variant="secondary"
-                className="flex-1"
-                onClick={async () => {
-                  try {
-                    setIsProcessing(true);
-                    setMessage('Đang áp dụng chính sách giảm giá 20%...');
-                    await updateProductStatus(product._id, 'Active');
-                    setMessage('Đã đồng ý giảm giá, máy tiếp tục chạy mượt mà.');
-                  } catch (e) {
-                    setMessage('Lỗi: ' + e.message);
-                  } finally { setIsProcessing(false); }
-                }}
-              >
-                Đồng ý giảm giá 20%
-              </Button>
+                      let packageAddress = product.contractAddress || '';
+                      if (!packageAddress) {
+                        const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
+                        const perHourOnChain = parseUnits(String(product.pricePerHour), 18);
+                        for (let i = 0; i < packageIds.length; i++) {
+                          const pkgId = packageIds[i];
+                          const info = await factory.getPackageInfo(pkgId);
+                          try {
+                            if (info.pricePerHour.toString() === perHourOnChain.toString()) {
+                              packageAddress = await factory.getPackageAddress(pkgId);
+                              break;
+                            }
+                          } catch (e) { }
+                        }
+                      }
 
-              <Button
-                variant="secondary"
-                className="flex-1 bg-rose-950/40 text-rose-400 border border-rose-900/60"
-                onClick={async () => {
-                  try {
-                    setIsProcessing(true);
-                    setMessage('Đang giải phóng tài nguyên và hoàn tiền...');
-                    await updateProductStatus(product._id, 'Available');
-                    await terminateProduct(product._id); 
-                    setMessage('Đã hủy & hoàn tiền thành công!');
-                    setTimeout(() => { window.location.reload(); }, 1500);
-                  } catch (e) {
-                    setMessage('Lỗi khi hủy: ' + e.message);
-                  } finally { setIsProcessing(false); }
-                }}
-              >
-                Hủy và hoàn tiền
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+                      const single = createSingleContract(packageAddress, signer);
+                      const tx = await single.confirmRental(contractId);
+                      await tx.wait();
+                      setMessage('Xác nhận OK đã được ghi nhận trên chain.');
+
+                      // CHUẨN HOÁ: Chuyển máy sang trạng thái Active chạy chính thức
+                      try { await updateProductStatus(product._id, 'Unavailable'); } catch (e) { }
+                    } catch (e) {
+                      setMessage('Lỗi khi cập nhật DB: ' + e.message);
+                    } finally { setIsProcessing(false); }
+                  }}
+                >
+                  Xác nhận OK
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={async () => {
+                    try {
+                      setIsProcessing(true);
+                      setMessage('Gửi lệnh chấp nhận giảm giá...');
+                      const provider = new BrowserProvider(window.ethereum);
+                      const signer = await provider.getSigner();
+                      const factory = createRentalFactoryContract(signer);
+                      let packageAddress = product.contractAddress || '';
+                      if (!packageAddress) {
+                        const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
+                        for (let i = 0; i < packageIds.length; i++) {
+                          const pkgId = packageIds[i];
+                          const info = await factory.getPackageInfo(pkgId);
+                          try {
+                            if (info.pricePerHour.toString() === parseUnits(String(product.pricePerHour), 18).toString()) {
+                              packageAddress = await factory.getPackageAddress(pkgId);
+                              break;
+                            }
+                          } catch (e) { }
+                        }
+                      }
+                      const single = createSingleContract(packageAddress, signer);
+                      const tx = await single.acceptDiscount(contractId);
+                      await tx.wait();
+                      setMessage('Đã chấp nhận giảm giá, máy hoạt động tiếp.');
+
+                      // ĐỒNG BỘ CHUẨN: Chuyển trạng thái máy sang chạy chính thức luôn
+                      try { await updateProductStatus(product._id, 'Unavailable'); } catch (e) { }
+                    } catch (e) {
+                      setMessage('Lỗi: ' + e.message);
+                    } finally { setIsProcessing(false); }
+                  }}
+                >
+                  Đồng ý giảm giá 20%
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  className="flex-1 bg-rose-950/40 text-rose-400 border border-rose-900/60"
+                  onClick={async () => {
+                    try {
+                      setIsProcessing(true);
+                      setMessage('Gửi lệnh hoàn tiền (reject) lên chain...');
+                      const provider = new BrowserProvider(window.ethereum);
+                      const signer = await provider.getSigner();
+                      const factory = createRentalFactoryContract(signer);
+                      let packageAddress = product.contractAddress || '';
+                      if (!packageAddress) {
+                        const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
+                        for (let i = 0; i < packageIds.length; i++) {
+                          const pkgId = packageIds[i];
+                          const info = await factory.getPackageInfo(pkgId);
+                          try {
+                            if (info.pricePerHour.toString() === parseUnits(String(product.pricePerHour), 18).toString()) {
+                              packageAddress = await factory.getPackageAddress(pkgId);
+                              break;
+                            }
+                          } catch (e) { }
+                        }
+                      }
+                      const single = createSingleContract(packageAddress, signer);
+                      const tx = await single.rejectDiscount(contractId);
+                      await tx.wait();
+                      setMessage('Đã hủy & hoàn tiền 100% cho khách.');
+
+                      // 🔥 ĐÃ VÁ LỖI: Sử dụng terminateProduct của Ân để xóa hẳn ví renterAddress khỏi DB
+                      try {
+                        await terminateProduct(product._id);
+                        await updateProductStatus(product._id, 'Available');
+
+                        localStorage.removeItem('trustrent.activeProductId');
+                        localStorage.removeItem('trustrent.activeContractId');
+                        localStorage.removeItem('trustrent.activePackageAddress');
+                        localStorage.removeItem('trustrent.rentalIp');
+                        localStorage.removeItem('trustrent.rentalPort');
+                        localStorage.removeItem('trustrent.rentalUsername');
+                        localStorage.removeItem('trustrent.rentalPassword');
+
+                        window.location.reload();
+                      } catch (e) {
+                        console.error("Lỗi đồng bộ giải phóng ví:", e);
+                      }
+                    } catch (e) {
+                      setMessage('Lỗi khi hủy: ' + e.message);
+                    } finally { setIsProcessing(false); }
+                  }}
+                >
+                  Hủy và hoàn tiền
+                </Button>
+              </div>
+            )
+          }
+        </div >
+      </div >
+    </div >
   );
 }
 

@@ -12,29 +12,40 @@ export const getProductById = async (id) => {
     return response.data.data;
 };
 
-// ✅ ĐÃ SỬA HOÀN CHỈNH: Hàm tạo máy chủ kết hợp kiểm tra File và đồng bộ packageAddress
-export const createProduct = async (title, description, pricePerDay, ownerAddress, condition, imageFile, packageAddress) => {
+// Đăng gói máy chủ mới
+export const createProduct = async (
+    title,
+    description,
+    pricePerHour,
+    ownerAddress,
+    condition,
+    username,
+    password,
+    imageFile,
+    packageAddress = ''
+) => {
     try {
         const formData = new FormData();
+
         formData.append('title', title);
         formData.append('description', description);
-        formData.append('pricePerHour', pricePerDay); 
+        formData.append('pricePerHour', pricePerHour);
+        formData.append('depositAmount', 0);
         formData.append('ownerAddress', ownerAddress);
         formData.append('condition', condition);
-        
-        // ĐÃ THÊM: Đóng gói địa chỉ ví contract vừa deploy on-chain gửi lên backend
-        formData.append('packageAddress', packageAddress); 
+        formData.append('username', username);
+        formData.append('password', password);
 
-        // 🔥 KIỂM TRA CHÍNH XÁC ĐỐI TƯỢNG FILE TRƯỚC KHI GỬI
-        // Nhóm ông thống nhất dùng key là 'image' hay 'images' thì sửa lại ở backend nhé, ở đây tôi giữ 'image' theo cấu trúc form.
-        if (imageFile && imageFile instanceof File) {
-            console.log("✈️ FormData chuẩn bị gửi file đi:", imageFile.name);
-            formData.append('image', imageFile); 
-        } else {
-            console.error("⚠️ Cảnh báo nguy hiểm: Biến imageFile truyền vào hàm không phải là một đối tượng File hợp lệ!", imageFile);
+        // Nếu sau này Hạnh/backend cần lưu địa chỉ contract gói máy
+        if (packageAddress) {
+            formData.append('packageAddress', packageAddress);
         }
 
-        // Gọi API sử dụng instance 'api' đồng bộ toàn dự án
+        // Backend đang đón bằng uploadCloud.array('images', 5)
+        if (imageFile) {
+            formData.append('images', imageFile);
+        }
+
         const response = await api.post('/products', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
@@ -43,7 +54,7 @@ export const createProduct = async (title, description, pricePerDay, ownerAddres
 
         return response.data;
     } catch (error) {
-        console.error("Lỗi gọi API createProduct:", error);
+        console.error('Lỗi gọi API createProduct:', error);
         throw error;
     }
 };
@@ -87,11 +98,15 @@ export const getSessionTime = async (productId) => {
 // Lấy danh sách máy chủ mà 1 ví đã đăng (dành cho Chủ máy)
 export const getProductsByOwner = async (ownerAddress) => {
     const allProducts = await getAllProducts();
-    return allProducts.filter(p => p.ownerAddress?.toLowerCase() === ownerAddress?.toLowerCase());
+    return allProducts.filter(
+        p => p.ownerAddress?.toLowerCase() === ownerAddress?.toLowerCase()
+    );
 };
 
 // Kiểm tra xem ví này đã từng đăng máy chủ nào chưa
 export const checkIsLessor = async (walletAddress) => {
     const allProducts = await getAllProducts();
-    return allProducts.some(p => p.ownerAddress?.toLowerCase() === walletAddress.toLowerCase());
+    return allProducts.some(
+        p => p.ownerAddress?.toLowerCase() === walletAddress?.toLowerCase()
+    );
 };
