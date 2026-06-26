@@ -40,9 +40,38 @@ function Dashboard({ currentTab, walletAddress }) {
     status: 'None'
   });
 
-  const [timeLeft, setTimeLeft] = useState(300); // 5 phút dùng thử = 300 giây
-  const [timerType, setTimerType] = useState('trial'); // 'trial' hoặc 'rental'
+  // Đồng hồ đang hiển thị trên Dashboard, đơn vị là giây.
+  const [timeLeft, setTimeLeft] = useState(0);
+
+  // timerType cho biết đồng hồ hiện tại đang là loại nào.
+  // none   = chưa có phiên thuê.
+  // trial  = đang ở thời gian thử nghiệm 10 phút.
+  // rental = đang ở thời gian thuê chính thức do khách chọn.
+  const [timerType, setTimerType] = useState('none');
+
+  // ID sản phẩm / phiên thuê đang active ở backend.
+  // ProductDetail cần lưu key này sau khi khách thuê thành công.
+  const [activeProductId, setActiveProductId] = useState(
+    localStorage.getItem('trustrent.activeProductId') || null
+  );
+
+  // contractId của phiên thuê trên smart contract.
+  // ProductDetail cần lưu key này sau khi gọi rentServer thành công.
+  const [activeContractId, setActiveContractId] = useState(
+    localStorage.getItem('trustrent.activeContractId') || null
+  );
+
+  // Địa chỉ contract gói máy cụ thể.
+  // ProductDetail cần lưu key này sau khi tìm được packageAddress.
+  const [activePackageAddress, setActivePackageAddress] = useState(
+    localStorage.getItem('trustrent.activePackageAddress') || null
+  );
+
   const [showToast, setShowToast] = useState(false);
+  const [showNegotiation, setShowNegotiation] = useState(false);
+  const [discountOffered, setDiscountOffered] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isResolvingDispute, setIsResolvingDispute] = useState(false);
 
   // States của Form đăng ký máy chủ
   const [serverForm, setServerForm] = useState({
@@ -53,7 +82,6 @@ function Dashboard({ currentTab, walletAddress }) {
     username: '',
     password: '',
     ownerAddress: currentWallet,
-    condition: 'Good',
   });
 
   const [imageFile, setImageFile] = useState(null);
@@ -167,37 +195,71 @@ function Dashboard({ currentTab, walletAddress }) {
   }, [currentWallet]);
 
   // Đếm ngược thời gian phiên làm việc
+  // Lấy thời gian phiên thuê từ backend
   useEffect(() => {
-    if (renterData.status === 'None') return;
+    if (!activeProductId) {
+      setTimeLeft(0);
+      setTimerType('none');
+      setShowToast(false);
+      setRenterData((prev) => ({ ...prev, status: 'None' }));
+      return;
+    }
 
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          if (timerType === 'trial') {
-            setRenterData((r) => ({ ...r, status: 'Unavailable' }));
-            setTimerType('rental');
-            setShowToast(true);
-            return 3600; // Chuyển sang 1 tiếng thuê chính thức
-          } else {
-            setRenterData((r) => ({ ...r, status: 'Available' }));
-            return 0;
+    const fetchSessionTime = async () => {
+      try {
+        const data = await getSessionTime(activeProductId);
+
+        const apiStatus = data?.status;
+        const trialTimeLeft = Number(data?.trialTimeLeft ?? 0);
+        const rentalTimeLeft = Number(data?.rentalTimeLeft ?? 0);
+        const fallbackTimeLeft = Number(data?.timeLeft ?? 0);
+
+        if (apiStatus === 'Available') {
+          clearActiveRentalState();
+          return;
+        }
+
+        if (apiStatus === 'Unavailable' && trialTimeLeft > 0) {
+          setTimeLeft(trialTimeLeft);
+          setTimerType('trial');
+
+          setRenterData((prev) => ({
+            ...prev,
+            status: 'Unavailable',
+          }));
+
+          setShowToast(trialTimeLeft <= 60 && trialTimeLeft > 0);
+          return;
+        }
+
+        if (apiStatus === 'Unavailable') {
+          const displayTimeLeft = rentalTimeLeft > 0 ? rentalTimeLeft : fallbackTimeLeft;
+
+          if (displayTimeLeft <= 0) {
+            clearActiveRentalState();
+            return;
           }
+
+          setTimeLeft(displayTimeLeft);
+          setTimerType('rental');
+
+          setRenterData((prev) => ({
+            ...prev,
+            status: 'Unavailable',
+          }));
+
+          setShowToast(displayTimeLeft <= 900 && displayTimeLeft > 0);
         }
+      } catch (err) {
+        console.error('Lỗi lấy thời gian phiên thuê từ server:', err);
+      }
+    };
 
-        // Cảnh báo Toast khi sắp hết hạn
-        if (timerType === 'trial' && prev === 60) {
-          setShowToast(true);
-        } else if (timerType === 'rental' && prev === 900) {
-          setShowToast(true);
-        }
+    fetchSessionTime();
+    const interval = setInterval(fetchSessionTime, 5000);
 
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [renterData.status, timerType]);
+    return () => clearInterval(interval);
+  }, [activeProductId]);
 
   // Định dạng thời gian hiển thị (MM:SS)
   const formatTime = (seconds) => {
@@ -304,7 +366,7 @@ function Dashboard({ currentTab, walletAddress }) {
       // 1. Gọi Smart Contract hủy ngang (Dùng địa chỉ động từ product lấy dưới DB lên)
       const targetAddress = product?.packageAddress || '0xMockContractAddress...';
       const singleContract = createSingleContract(targetAddress, signer);
-      
+
       // Giả lập hoặc đợi tx.wait() tùy theo việc hàm mới của Hạnh tên là gì
       // const tx = await singleContract.tenHamHuyMoi(); 
       // await tx.wait();
@@ -322,7 +384,7 @@ function Dashboard({ currentTab, walletAddress }) {
       // 3. Cập nhật State Frontend để chuyển giao diện
       setRenterData((prev) => ({ ...prev, status: 'None' }));
       alert('Đã hủy phiên thử nghiệm thành công! Hệ thống đã hoàn trả tiền cọc về ví của bạn.');
-      
+
       // Reload nhẹ để cập nhật giao diện máy trống
       setTimeout(() => { window.location.reload(); }, 1000);
 
@@ -425,12 +487,9 @@ function Dashboard({ currentTab, walletAddress }) {
       // 3. GỌI SERVICE ĐỂ ĐẨY DATA + PACKAGE_ADDRESS LÊN BACKEND MONGODB
       const backendResult = await createProduct(
         serverForm.title,
-        `Cấu hình: ${serverForm.cpu || '4 vCPU'}, ${serverForm.ram || '16GB RAM'}, ${serverForm.gpu || 'Không có'}. Tài khoản: ${serverForm.username}`,
+        `Cấu hình: ${serverForm.description || '4 vCPU'}, ${serverForm.condition || '16GB RAM'}. Tài khoản: ${serverForm.username}`,
         serverForm.pricePerHour,
         serverForm.ownerAddress,
-        "Uptime SLA 99.9%",
-        imageFile,
-        deployedPackageAddress, // Truyền địa chỉ ví Contract con lưu xuống database
         serverForm.condition,
         serverForm.username,
         serverForm.password,
@@ -544,17 +603,22 @@ function Dashboard({ currentTab, walletAddress }) {
             </div>
 
             {/* Chỉ hiển thị Badge trạng thái khi có máy đang hoạt động/thử nghiệm thực tế */}
-            {renterData && renterData.status && renterData.status !== 'Available' && (
-              <span className={`px-3 py-1 rounded-full text-xs font-bold ${renterData.status === 'Unavailable'
-                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500'
-                }`}>
-                {renterData.status === 'Unavailable' ? 'Thử nghiệm (10p)' : 'Unavailable (Đang thuê)'}
-              </span>
-            )}
-          </div>
+            {renterData &&
+              renterData.status &&
+              renterData.status !== 'Available' &&
+              renterData.status !== 'None' && (
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-bold ${timerType === 'trial'
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                    : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500'
+                    }`}
+                >
+                  {timerType === 'trial' ? 'Thử nghiệm (10p)' : 'Đang thuê'}
+                </span>
+              )}
+          </div >
 
-          {!renterData || renterData.status === 'Available' ? (
+          {!renterData || renterData.status === 'None' || renterData.status === 'Available' ? (
             <div className="py-12 flex flex-col items-center justify-center text-center gap-4 bg-slate-950/40 border border-dashed border-slate-800 rounded-xl">
               <div className="text-4xl">📭</div>
               <div>
@@ -630,7 +694,7 @@ function Dashboard({ currentTab, walletAddress }) {
               </div>
 
               {/* PHIÊN THỬ NGHIỆM: CHỈ CÒN ĐỒNG Ý HOẶC HỦY BỎ */}
-              {renterData.status === 'Unavailable' && (
+              {renterData.status === 'Unavailable' && timerType === 'trial' && (
                 <div className="flex flex-col gap-3 border-t border-slate-800 pt-4 mt-2">
                   <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
@@ -664,7 +728,7 @@ function Dashboard({ currentTab, walletAddress }) {
               )}
             </>
           )}
-        </div>
+        </div >
       ) : (
         /* ================== MENU 3: KHÔNG GIAN CHỦ MÁY ================== */
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
@@ -742,27 +806,6 @@ function Dashboard({ currentTab, walletAddress }) {
                     value={serverForm.password || ''}
                     onChange={(e) => handleServerFormChange('password', e.target.value)}
                     placeholder="Nhập mật khẩu truy cập máy"
-                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-400 block mb-1">Username đăng nhập máy</label>
-                  <input
-                    type="text"
-                    value={serverForm.username}
-                    onChange={(e) => handleServerFormChange('username', e.target.value)}
-                    placeholder="Ví dụ: root hoặc ubuntu"
-                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-slate-400 block mb-1">Password đăng nhập máy</label>
-                  <input
-                    type="text"
-                    value={serverForm.password}
-                    onChange={(e) => handleServerFormChange('password', e.target.value)}
-                    placeholder="Nhập mật khẩu máy chủ"
                     className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -871,7 +914,7 @@ function Dashboard({ currentTab, walletAddress }) {
           </div>
         </div>
       )}
-    </div>
+    </div >
   );
 }
 
