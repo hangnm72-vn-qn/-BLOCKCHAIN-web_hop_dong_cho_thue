@@ -13,7 +13,16 @@ export const getProductById = async (id) => {
 }
 
 // Đăng gói máy chủ mới
-export const createProduct = async (title, description, pricePerHour, ownerAddress, condition, imageFile) => {
+export const createProduct = async (
+    title,
+    description,
+    pricePerHour,
+    ownerAddress,
+    condition,
+    username,
+    password,
+    imageFile
+) => {
     const formData = new FormData()
     formData.append('title', title)
     formData.append('description', description)
@@ -21,6 +30,9 @@ export const createProduct = async (title, description, pricePerHour, ownerAddre
     formData.append('depositAmount', 0)
     formData.append('ownerAddress', ownerAddress)
     formData.append('condition', condition)
+    formData.append('username', username)
+    formData.append('password', password)
+
     if (imageFile) {
         formData.append('images', imageFile) // Backend đón bằng uploadCloud.array('images', 5)
     }
@@ -28,6 +40,7 @@ export const createProduct = async (title, description, pricePerHour, ownerAddre
     const response = await api.post('/products', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
     })
+
     return response.data
 }
 

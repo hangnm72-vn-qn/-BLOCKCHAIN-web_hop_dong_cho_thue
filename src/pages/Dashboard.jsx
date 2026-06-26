@@ -26,13 +26,11 @@ function Dashboard({ currentTab }) {
   // 1. STATE QUẢN LÝ PHÍA KHÁCH THUÊ
   // =========================================================
   // renterData chứa thông tin máy mà khách đang thuê.
-  // Hiện tại IP/port/user/pass đang để mock.
-  // Sau này có thể thay bằng dữ liệu backend trả về sau khi provisionProduct().
   const [renterData, setRenterData] = useState({
-    ip: '34.124.211.85',
-    port: '22',
-    username: 'trustrent_user',
-    password: 'MockPassword2026@',
+    ip: localStorage.getItem('trustrent.rentalIp') || '',
+    port: localStorage.getItem('trustrent.rentalPort') || '22',
+    username: localStorage.getItem('trustrent.rentalUsername') || '',
+    password: localStorage.getItem('trustrent.rentalPassword') || '',
     status: 'None'
   });
 
@@ -93,6 +91,8 @@ function Dashboard({ currentTab }) {
     description: '',
     pricePerHour: '',
     condition: '',
+    username: '',
+    password: '',
     ownerAddress: currentWallet,
   });
 
@@ -104,10 +104,13 @@ function Dashboard({ currentTab }) {
   // Hàm dọn trạng thái thuê hiện tại ở frontend.
   // Dùng khi hợp đồng kết thúc, hoàn tiền, hủy hoặc backend báo máy đã Available/Completed.
   const clearActiveRentalState = () => {
-    setRenterData((prev) => ({
-      ...prev,
+    setRenterData({
+      ip: '',
+      port: '22',
+      username: '',
+      password: '',
       status: 'None',
-    }));
+    });
 
     setLessorData({ status: 'None' });
     setTimeLeft(0);
@@ -123,6 +126,10 @@ function Dashboard({ currentTab }) {
     localStorage.removeItem('trustrent.activeProductId');
     localStorage.removeItem('trustrent.activeContractId');
     localStorage.removeItem('trustrent.activePackageAddress');
+    localStorage.removeItem('trustrent.rentalIp');
+    localStorage.removeItem('trustrent.rentalPort');
+    localStorage.removeItem('trustrent.rentalUsername');
+    localStorage.removeItem('trustrent.rentalPassword');
   };
 
   // Hàm lấy thông tin phiên thuê đang active.
@@ -387,7 +394,7 @@ function Dashboard({ currentTab }) {
       const { productId, contractId, packageAddress } = getActiveRentalInfo();
 
       try {
-        await updateProductStatus(productId, 'Rented');
+        await updateProductStatus(productId, 'Unavailable');
       } catch (e) {
         console.error('Lỗi cập nhật backend sang Active:', e);
       }
@@ -427,7 +434,7 @@ function Dashboard({ currentTab }) {
 
       if (activeProductId) {
         try {
-          await updateProductStatus(activeProductId, 'Dispute');
+          await updateProductStatus(activeProductId, 'Unavailable');
         } catch (e) {
           console.error('Lỗi cập nhật backend sang Dispute:', e);
         }
@@ -533,8 +540,15 @@ function Dashboard({ currentTab }) {
   // 2. Smart contract ghi nhận máy ở trạng thái Available.
   // 3. Gọi backend createProduct để lưu thông tin hiển thị trên Home.
   const handleCreateServer = async () => {
-    if (!serverForm.title || !serverForm.pricePerHour || !serverForm.ownerAddress || !imageFile) {
-      setSubmitMessage('Vui lòng nhập đủ tên gói, giá thuê, địa chỉ ví và ảnh đại diện.');
+    if (
+      !serverForm.title ||
+      !serverForm.pricePerHour ||
+      !serverForm.ownerAddress ||
+      !serverForm.username ||
+      !serverForm.password ||
+      !imageFile
+    ) {
+      setSubmitMessage('Vui lòng nhập đủ tên gói, giá thuê, địa chỉ ví, username, password và ảnh đại diện.');
       return;
     }
 
@@ -584,6 +598,8 @@ function Dashboard({ currentTab }) {
         serverForm.pricePerHour,
         serverForm.ownerAddress,
         serverForm.condition,
+        serverForm.username,
+        serverForm.password,
         imageFile
       );
 
@@ -609,6 +625,8 @@ function Dashboard({ currentTab }) {
         description: '',
         pricePerHour: '',
         condition: '',
+        username: '',
+        password: '',
         ownerAddress: currentWallet,
       });
 
@@ -901,6 +919,27 @@ function Dashboard({ currentTab }) {
                     value={serverForm.pricePerHour}
                     onChange={(e) => handleServerFormChange('pricePerHour', e.target.value)}
                     placeholder="Ví dụ: 10"
+                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 block mb-1">Username đăng nhập máy</label>
+                  <input
+                    type="text"
+                    value={serverForm.username}
+                    onChange={(e) => handleServerFormChange('username', e.target.value)}
+                    placeholder="Ví dụ: root hoặc ubuntu"
+                    className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-400 block mb-1">Password đăng nhập máy</label>
+                  <input
+                    type="text"
+                    value={serverForm.password}
+                    onChange={(e) => handleServerFormChange('password', e.target.value)}
+                    placeholder="Nhập mật khẩu máy chủ"
                     className="w-full bg-slate-900 border border-slate-800 rounded p-2.5 text-slate-200 font-medium focus:outline-none focus:border-emerald-500"
                   />
                 </div>

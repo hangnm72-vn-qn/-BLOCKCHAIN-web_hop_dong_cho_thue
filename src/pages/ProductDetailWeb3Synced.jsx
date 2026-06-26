@@ -36,7 +36,7 @@ function ProductDetail() {
       {/* CỘT TRÁI: Ảnh cấu hình / Minh họa VPS */}
       <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl h-[500px]">
         <img
-          src={product.images[0]}
+          src={product.images?.[0] || 'https://via.placeholder.com/600x500?text=No+Image'}
           alt={product.title}
           className="w-full h-full object-cover"
         />
@@ -216,9 +216,28 @@ function ProductDetail() {
                     // ✅ ĐÃ SỬA: Đọc phẳng trực tiếp dữ liệu từ Backend trả về
                     try {
                       const prov = await provisionProduct(product._id, renterAddress);
+
                       if (prov && prov.success) {
-                        setCredentials(prov);
+                        const data = prov.data || prov;
+
+                        const rentalInfo = {
+                          message: data.message || prov.message || 'Máy đã được bàn giao thành công.',
+                          ipAddress: data.ipAddress || data.ip || '',
+                          port: data.port || '22',
+                          username: data.username || '',
+                          password: data.password || '',
+                        };
+
+                        setCredentials(rentalInfo);
+
                         localStorage.setItem('trustrent.activeProductId', product._id);
+                        localStorage.setItem('trustrent.rentalIp', rentalInfo.ipAddress);
+                        localStorage.setItem('trustrent.rentalPort', rentalInfo.port);
+                        localStorage.setItem('trustrent.rentalUsername', rentalInfo.username);
+                        localStorage.setItem('trustrent.rentalPassword', rentalInfo.password);
+
+                        await updateProductStatus(product._id, 'Unavailable');
+                        setProduct(prev => ({ ...prev, status: 'Unavailable' }));
                       }
                     } catch (e) {
                       console.error("Lỗi gọi API Provision:", e);
@@ -252,9 +271,39 @@ function ProductDetail() {
           {credentials && (
             <div className="mt-3 bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm">
               <h4 className="text-xs font-bold text-slate-300 mb-2">Thông tin bàn giao VPS</h4>
-              <div className="text-xs space-y-1">
-                <div className="text-emerald-400 font-medium">✨ {credentials.message}</div>
-                <div className="mt-2">Địa chỉ IP kết nối: <span className="font-mono text-blue-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">{credentials.ipAddress}</span></div>
+
+              <div className="text-xs space-y-2">
+                <div className="text-emerald-400 font-medium">
+                  ✨ {credentials.message}
+                </div>
+
+                <div>
+                  Địa chỉ IP kết nối:{' '}
+                  <span className="font-mono text-blue-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                    {credentials.ipAddress || 'Đang cập nhật'}
+                  </span>
+                </div>
+
+                <div>
+                  Port:{' '}
+                  <span className="font-mono text-blue-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                    {credentials.port || '22'}
+                  </span>
+                </div>
+
+                <div>
+                  Username:{' '}
+                  <span className="font-mono text-emerald-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                    {credentials.username || 'Đang cập nhật'}
+                  </span>
+                </div>
+
+                <div>
+                  Password:{' '}
+                  <span className="font-mono text-amber-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                    {credentials.password || 'Đang cập nhật'}
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -298,7 +347,7 @@ function ProductDetail() {
                     setMessage('Xác nhận OK đã được ghi nhận trên chain.');
 
                     // CHUẨN HOÁ: Chuyển máy sang trạng thái Active chạy chính thức
-                    try { await updateProductStatus(product._id, 'Active'); } catch (e) { }
+                    try { await updateProductStatus(product._id, 'Unavailable'); } catch (e) { }
                   } catch (e) {
                     console.error(e);
                     setMessage('Lỗi khi xác nhận OK: ' + (e?.message || ''));
@@ -339,7 +388,7 @@ function ProductDetail() {
                     setMessage('Đã chấp nhận giảm giá, máy hoạt động tiếp.');
 
                     // ĐỒNG BỘ CHUẨN: Chuyển trạng thái máy sang chạy chính thức luôn
-                    try { await updateProductStatus(product._id, 'Active'); } catch (e) { }
+                    try { await updateProductStatus(product._id, 'Unavailable'); } catch (e) { }
                   } catch (e) {
                     console.error(e);
                     setMessage('Lỗi khi chấp nhận giảm giá: ' + (e?.message || ''));
@@ -382,8 +431,16 @@ function ProductDetail() {
                     // 🔥 ĐÃ VÁ LỖI: Sử dụng terminateProduct của Ân để xóa hẳn ví renterAddress khỏi DB
                     try {
                       await terminateProduct(product._id);
-                      localStorage.removeItem('trustrent.activeProductId'); // Thêm dòng này
-                      // Refresh lại trang để cập nhật giao diện máy trống
+                      await updateProductStatus(product._id, 'Available');
+
+                      localStorage.removeItem('trustrent.activeProductId');
+                      localStorage.removeItem('trustrent.activeContractId');
+                      localStorage.removeItem('trustrent.activePackageAddress');
+                      localStorage.removeItem('trustrent.rentalIp');
+                      localStorage.removeItem('trustrent.rentalPort');
+                      localStorage.removeItem('trustrent.rentalUsername');
+                      localStorage.removeItem('trustrent.rentalPassword');
+
                       window.location.reload();
                     } catch (e) {
                       console.error("Lỗi đồng bộ giải phóng ví:", e);
