@@ -3,7 +3,7 @@ import { BrowserProvider, formatEther } from 'ethers';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
-import ProductDetail from "./pages/ProductDetailWeb3Synced";
+import ProductDetail from './pages/ProductDetail';
 import AddProduct from './pages/AddProduct';
 import Dashboard from './pages/Dashboard';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';

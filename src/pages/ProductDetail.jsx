@@ -4,8 +4,24 @@ import Input from '../components/Input';
 // ĐÃ SỬA: Import thêm hàm terminateProduct từ Service để dứt điểm xoá ví thuê
 import { getProductById, updateProductStatus, provisionProduct, terminateProduct } from "../Service - Ân/productService";
 import { useParams, useNavigate } from 'react-router-dom';
-import { BrowserProvider, Contract, parseUnits } from 'ethers';
+import { BrowserProvider, Contract, formatEther, parseUnits } from 'ethers';
 import { createRentalFactoryContract, createSingleContract, SEPOLIA_CHAIN_ID } from '../contracts/rentalFactoryConfig';
+
+const CONTRACT_STATUS_LABELS = {
+  0: 'Pending',
+  1: 'AwaitingOwnerReview',
+  2: 'NegotiatingDiscount',
+  3: 'Active',
+  4: 'Completed',
+  5: 'Cancelled',
+};
+
+const MAX_RENTAL_HOURS = 8760;
+
+function getContractStatusLabel(statusValue) {
+  const numericStatus = Number(statusValue ?? -1);
+  return CONTRACT_STATUS_LABELS[numericStatus] || `Unknown(${numericStatus})`;
+}
 
 function ProductDetail() {
   const { id } = useParams();
@@ -18,6 +34,11 @@ function ProductDetail() {
   const [contractId, setContractId] = useState(null);
   const [message, setMessage] = useState('');
   const [credentials, setCredentials] = useState(null);
+  const [txHash, setTxHash] = useState('');
+  const [contractStatus, setContractStatus] = useState('');
+  const [walletAddress, setWalletAddress] = useState('');
+  const [tokenAddress, setTokenAddress] = useState('');
+  const [contractRenter, setContractRenter] = useState('');
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -27,6 +48,80 @@ function ProductDetail() {
     };
     fetchProduct();
   }, [id]);
+
+  const resolvePackageAddress = async (signer) => {
+    if (product?.packageAddress) return product.packageAddress;
+    if (product?.contractAddress) return product.contractAddress;
+
+    const factory = createRentalFactoryContract(signer);
+    const packageIds = await factory.getPackagesByOwner(product.ownerAddress);
+    const perHourOnChain = parseUnits(String(product.pricePerHour), 18);
+
+    for (let i = 0; i < packageIds.length; i++) {
+      const pkgId = packageIds[i];
+      const info = await factory.getPackageInfo(pkgId);
+      try {
+        if (info.pricePerHour.toString() === perHourOnChain.toString()) {
+          return await factory.getPackageAddress(pkgId);
+        }
+      } catch (e) {
+        // ignore and continue
+      }
+    }
+
+    return '';
+  };
+
+  const syncContractStatus = async (packageAddress, signer, currentContractId) => {
+    if (!packageAddress || !currentContractId) {
+      setContractStatus('');
+      return '';
+    }
+
+    try {
+      const single = createSingleContract(packageAddress, signer);
+      const contractData = await single.getContract(currentContractId);
+      const nextStatus = getContractStatusLabel(contractData?.status);
+      setContractStatus(nextStatus);
+      return nextStatus;
+    } catch (e) {
+      setContractStatus('');
+      return '';
+    }
+  };
+
+  const refreshWalletBalance = async (signer) => {
+    try {
+      const provider = signer.provider || new BrowserProvider(window.ethereum);
+      const factory = createRentalFactoryContract(signer);
+      const currentTokenAddress = await factory.token();
+      const tokenContract = new Contract(
+        currentTokenAddress,
+        ['function balanceOf(address) view returns (uint256)', 'function decimals() view returns (uint8)'],
+        provider
+      );
+      const address = await signer.getAddress();
+      const decimals = Number(await tokenContract.decimals());
+      const rawBalance = await tokenContract.balanceOf(address);
+      const balance = Number(rawBalance) / 10 ** decimals;
+      return { balance, address, tokenAddress: currentTokenAddress };
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const syncWalletContext = async (signer) => {
+    try {
+      const factory = createRentalFactoryContract(signer);
+      const currentTokenAddress = await factory.token();
+      const address = await signer.getAddress();
+      setWalletAddress(address);
+      setTokenAddress(currentTokenAddress);
+      return { address, tokenAddress: currentTokenAddress };
+    } catch (e) {
+      return null;
+    }
+  };
 
   if (loading) return <p className="text-slate-400 text-center mt-10">Đang tải thông tin máy chủ...</p>;
   if (!product) return <p className="text-slate-400 text-center mt-10">Không tìm thấy thông tin máy chủ.</p>;
@@ -105,6 +200,7 @@ function ProductDetail() {
               type="number"
               placeholder="Nhập số giờ... (Ví dụ: 5)"
               min="1"
+              max={MAX_RENTAL_HOURS}
               value={rentHours}
               onChange={(e) => setRentHours(e.target.value)}
               required
@@ -147,6 +243,7 @@ function ProductDetail() {
                     }
 
                     const signer = await provider.getSigner();
+                    await syncWalletContext(signer);
                     const factory = createRentalFactoryContract(signer);
 
                     const tokenAddress = await factory.token();
@@ -154,7 +251,8 @@ function ProductDetail() {
                       tokenAddress,
                       [
                         'function approve(address,uint256) returns (bool)',
-                        'function decimals() view returns (uint8)'
+                        'function decimals() view returns (uint8)',
+                        'function balanceOf(address) view returns (uint256)'
                       ],
                       signer
                     );
@@ -166,17 +264,34 @@ function ProductDetail() {
                       decimals = 18;
                     }
 
-                    const totalPrice = Number(product.pricePerHour) * Number(rentHours);
+                    const parsedRentHours = Number(rentHours);
+                    if (!Number.isInteger(parsedRentHours) || parsedRentHours < 1 || parsedRentHours > MAX_RENTAL_HOURS) {
+                      setMessage(`Số giờ thuê phải là số nguyên từ 1 đến ${MAX_RENTAL_HOURS} giờ (tương đương 365 ngày).`);
+                      return;
+                    }
+
+                    const totalPrice = Number(product.pricePerHour) * parsedRentHours;
                     if (totalPrice <= 0) {
                       setMessage('Số giờ thuê không hợp lệ.');
                       return;
                     }
 
                     const totalAmount = parseUnits(String(totalPrice), decimals);
+                    const walletAddress = await signer.getAddress();
+                    const rawBalance = await tokenContract.balanceOf(walletAddress);
+                    const walletBalance = Number(rawBalance) / 10 ** decimals;
+                    const nativeBalance = Number(formatEther(await provider.getBalance(walletAddress)));
 
-                    // ⚡ XỬ LÝ NÚT BẤM: THUÊ NGAY
-                    const packageAddress = product.packageAddress;
+                    if (walletBalance < totalPrice) {
+                      if (walletBalance === 0) {
+                        setMessage(`Bạn đang có ${nativeBalance.toFixed(4)} ETH trên Sepolia, nhưng không có token ERC20 của hợp đồng này. Hệ thống thuê dùng token ERC20, không dùng ETH.`);
+                      } else {
+                        setMessage(`Ví của bạn chưa đủ token để thuê. Cần tối thiểu ${totalPrice} token nhưng hiện có ${walletBalance.toFixed(6)} token. ETH hiện có: ${nativeBalance.toFixed(4)}.`);
+                      }
+                      return;
+                    }
 
+                    const packageAddress = await resolvePackageAddress(signer);
                     if (!packageAddress) {
                       setMessage('Không tìm thấy contract gói máy trên hệ thống database.');
                       return;
@@ -185,16 +300,19 @@ function ProductDetail() {
                     const single = createSingleContract(packageAddress, signer);
 
                     const approveTx = await tokenContract.approve(packageAddress, totalAmount);
+                    setTxHash(approveTx.hash);
                     setMessage('Đang phê duyệt token trên MetaMask...');
                     await approveTx.wait();
 
-                    const rentTx = await single.rentServer(Number(rentHours));
+                    const rentTx = await single.rentServer(parsedRentHours);
+                    setTxHash(rentTx.hash);
                     setMessage('Gửi lệnh thuê, chờ xử lý trên chain...');
                     await rentTx.wait();
 
                     let nextId = await single.nextContractId();
                     const newContractId = Number(nextId.toString()) - 1;
                     setContractId(newContractId);
+                    await syncContractStatus(packageAddress, signer, newContractId);
 
                     const renterAddress = await signer.getAddress();
 
@@ -208,7 +326,16 @@ function ProductDetail() {
                     setMessage('Thuê thành công. ContractId: ' + newContractId);
                   } catch (err) {
                     console.error(err);
-                    setMessage(err?.message || 'Lỗi khi thuê máy.');
+                    const reason = err?.reason || err?.error?.message || err?.message || 'Lỗi khi thuê máy.';
+                    if (reason.includes('Insufficient balance')) {
+                      setMessage('Giao dịch bị từ chối bởi hợp đồng vì ví không đủ token để khóa cọc.');
+                    } else if (reason.includes('Rental period too long')) {
+                      setMessage('Giao dịch bị từ chối vì số giờ thuê vượt giới hạn cho phép của hợp đồng.');
+                    } else if (reason.includes('User rejected')) {
+                      setMessage('Bạn đã huỷ giao dịch trong MetaMask.');
+                    } else {
+                      setMessage(reason);
+                    }
                   } finally {
                     setIsProcessing(false);
                   }
@@ -226,8 +353,46 @@ function ProductDetail() {
           <p className="text-[11px] text-slate-500 text-center italic">
             *Bấm Thuê Ngay sẽ kích hoạt ví MetaMask để thực hiện khóa Token đặt cọc vào Hợp đồng.
           </p>
+          {walletAddress && (
+            <p className="text-[11px] text-slate-500 break-all">
+              Ví đang kết nối: <span className="text-slate-300 font-mono">{walletAddress}</span>
+            </p>
+          )}
+
+          {tokenAddress && (
+            <p className="text-[11px] text-slate-500 break-all">
+              Token contract: <span className="text-slate-300 font-mono">{tokenAddress}</span>
+            </p>
+          )}
+
+          {contractRenter && (
+            <p className="text-[11px] text-slate-500 break-all">
+              Địa chỉ nhận hoàn tiền trong hợp đồng: <span className="text-slate-300 font-mono">{contractRenter}</span>
+            </p>
+          )}
+
           {message && (
             <p className={`text-xs ${message.includes('thành công') ? 'text-emerald-400' : 'text-rose-400'}`}>{message}</p>
+          )}
+
+          {contractStatus && (
+            <p className="text-[11px] text-slate-400 mt-1">
+              Trạng thái hợp đồng: <span className="text-slate-200 font-semibold">{contractStatus}</span>
+            </p>
+          )}
+
+          {txHash && (
+            <div className="mt-2 text-[11px] break-all text-blue-400">
+              Tx hash: {' '}
+              <a
+                href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                {txHash}
+              </a>
+            </div>
           )}
 
           {credentials && (
@@ -258,8 +423,14 @@ function ProductDetail() {
                     const provider = new BrowserProvider(window.ethereum);
                     const signer = await provider.getSigner();
                     
-                    const packageAddress = product.packageAddress;
+                    const packageAddress = await resolvePackageAddress(signer);
                     if (!packageAddress) return setMessage('Thiếu địa chỉ Contract!');
+
+                    const currentStatus = await syncContractStatus(packageAddress, signer, contractId);
+                    if (currentStatus !== 'Pending') {
+                      setMessage(`Không thể xác nhận OK vì hợp đồng hiện đang ở trạng thái ${currentStatus || 'không xác định'}.`);
+                      return;
+                    }
 
                     const single = createSingleContract(packageAddress, signer);
                     const tx = await single.confirmRental(contractId);
@@ -287,13 +458,32 @@ function ProductDetail() {
                     const provider = new BrowserProvider(window.ethereum);
                     const signer = await provider.getSigner();
                     
-                    const packageAddress = product.packageAddress;
+                    const packageAddress = await resolvePackageAddress(signer);
                     if (!packageAddress) return setMessage('Thiếu địa chỉ Contract!');
+
+                    const currentStatus = await syncContractStatus(packageAddress, signer, contractId);
+                    if (currentStatus !== 'NegotiatingDiscount') {
+                      setMessage('Không thể chấp nhận giảm giá vì hợp đồng chưa ở trạng thái thương lượng giảm giá. Owner cần đề xuất mức giảm giá trước.');
+                      return;
+                    }
 
                     const single = createSingleContract(packageAddress, signer);
                     const tx = await single.acceptDiscount(contractId);
                     await tx.wait();
-                    setMessage('Đã chấp nhận giảm giá, máy hoạt động tiếp.');
+                    setTxHash(tx.hash);
+
+                    const contractData = await single.getContract(contractId);
+                    const nextStatus = getContractStatusLabel(contractData?.status);
+                    setContractStatus(nextStatus);
+                    setContractRenter(contractData?.renter || '');
+
+                    const balanceAfterAccept = await refreshWalletBalance(signer);
+                    if (balanceAfterAccept !== null) {
+                      const { balance, address } = balanceAfterAccept;
+                      setMessage(`Đã chấp nhận giảm giá. Hợp đồng đã chuyển sang ${nextStatus}. Tiền sẽ về ví ${address}. Số dư ví hiện tại khoảng ${balance.toFixed(6)} token.`);
+                    } else {
+                      setMessage('Đã chấp nhận giảm giá, máy hoạt động tiếp.');
+                    }
                     
                     try { await updateProductStatus(product._id, 'Active'); } catch (e) {}
                   } catch (e) {
@@ -316,13 +506,32 @@ function ProductDetail() {
                     const provider = new BrowserProvider(window.ethereum);
                     const signer = await provider.getSigner();
                     
-                    const packageAddress = product.packageAddress;
+                    const packageAddress = await resolvePackageAddress(signer);
                     if (!packageAddress) return setMessage('Thiếu địa chỉ Contract!');
+
+                    const currentStatus = await syncContractStatus(packageAddress, signer, contractId);
+                    if (currentStatus !== 'NegotiatingDiscount') {
+                      setMessage('Không thể hoàn tiền vì hợp đồng hiện chưa ở trạng thái thương lượng giảm giá.');
+                      return;
+                    }
 
                     const single = createSingleContract(packageAddress, signer);
                     const tx = await single.rejectDiscount(contractId);
                     await tx.wait();
+                    setTxHash(tx.hash);
+
+                    const contractData = await single.getContract(contractId);
+                    const nextStatus = getContractStatusLabel(contractData?.status);
+                    setContractStatus(nextStatus);
+                    setContractRenter(contractData?.renter || '');
+
                     setMessage('Đã hủy trên chain thành công! Đang dọn dẹp database...');
+
+                    const balanceAfterRefund = await refreshWalletBalance(signer);
+                    if (balanceAfterRefund !== null) {
+                      const { balance, address } = balanceAfterRefund;
+                      setMessage(`Đã hủy trên chain thành công. Hợp đồng đã chuyển sang ${nextStatus}. Tiền hoàn sẽ về ví ${contractData?.renter || address}. Số dư ví hiện tại khoảng ${balance.toFixed(6)} token.`);
+                    }
                     
                     // Cập nhật trạng thái máy về Available trước
                     try { await updateProductStatus(product._id, 'Available'); } catch (e) {}
