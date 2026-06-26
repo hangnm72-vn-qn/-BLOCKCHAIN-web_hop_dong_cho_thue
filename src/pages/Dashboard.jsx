@@ -447,7 +447,7 @@ function Dashboard({ currentTab }) {
     }
   };
 
-  // Chủ máy bấm "Đề xuất giảm giá 20%".
+
   // Chủ máy chỉ đề xuất, khách phải đồng ý thì contract mới xử lý acceptDiscount.
   const handleProposeDiscount = () => {
     setDiscountOffered(true);
