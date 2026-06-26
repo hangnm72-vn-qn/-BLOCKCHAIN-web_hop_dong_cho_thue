@@ -374,7 +374,7 @@ function Dashboard({ currentTab, walletAddress }) {
     try {
       setIsResolvingDispute(true);
 
-      const { productId } = await callSingleContractMethod('rejectDiscount');
+      const { productId } = await callSingleContractMethod('cancelByRenter');
 
       try {
         await terminateProduct(productId);
@@ -390,7 +390,7 @@ function Dashboard({ currentTab, walletAddress }) {
 
       clearActiveRentalState();
 
-      alert('Đã hủy phiên thử nghiệm và giải phóng máy.');
+      alert('Đã hủy phiên thử nghiệm và hoàn tiền 100%. Máy đã được giải phóng.');
     } catch (error) {
       console.error('Lỗi hủy/hoàn tiền:', error);
 
