@@ -39,8 +39,70 @@ function Home({ walletAddress }) {
 
   return (
     <div className="space-y-10">
+
+      {/* ================== PHẦN GIỚI THIỆU NỀN TẢNG (STYLE THINKMAY ĐẬM CHẤT WEB3) ================== */}
+<div className="relative overflow-hidden bg-slate-950 py-20 px-4 sm:px-6 lg:px-8 border-b border-slate-900 mb-8 text-center">
+  
+  {/* Hiệu ứng ánh sáng nghệ thuật chìm phía sau tạo chiều sâu */}
+  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full pointer-events-none opacity-10">
+    <div className="absolute top-[-20%] left-[35%] w-[500px] h-[500px] rounded-full bg-blue-500 blur-[150px]"></div>
+    <div className="absolute bottom-[-20%] right-[35%] w-[450px] h-[450px] rounded-full bg-emerald-500 blur-[150px]"></div>
+  </div>
+
+  {/* Khối nội dung chính được căn giữa hoàn toàn */}
+  <div className="relative max-w-3xl mx-auto flex flex-col items-center gap-6">
+    
+    {/* Tiêu đề chính (Headline) siêu lớn, đổ màu Gradient mượt mà */}
+    <h1 className="text-3xl sm:text-4xl md:text-4xl font-extrabold tracking-tight leading-tight flex flex-col gap-3">
+      <span className="text-white block">
+        TrustRent - Thuê Máy Chủ VPS & GPU
+      </span>
+      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 block">
+        An Toàn Tuyệt Đối Với Smart Contract
+      </span>
+    </h1>
+
+    {/* Đoạn mô tả (Sub-headline) tinh gọn, dễ đọc */}
+    <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-xl mt-1 opacity-90">
+      TrustRent kết nối trực tiếp Chủ máy và Khách hàng thông qua Hợp đồng thông minh mạng Sepolia Testnet. 
+      Mọi giao dịch, bàn giao cấu hình hệ thống và quyết toán chi phí đều được tự động hóa, 
+      minh bạch và loại bỏ hoàn toàn rủi ro lừa đảo.
+    </p>
+
+    {/* Các tính năng cốt lõi xếp thành một dòng nằm ngang bên dưới */}
+    <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 mt-4 text-xs font-medium text-slate-400 border-t border-slate-900 pt-6 w-full">
+      <div className="flex items-center gap-1.5">
+        <span className="text-emerald-400">✔</span> 10 Phút dùng thử thực tế
+      </div>
+      <div className="h-3 w-[1px] bg-slate-800 hidden sm:block"></div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-emerald-400">✔</span> Hoàn tiền 100% nếu VPS lỗi
+      </div>
+      <div className="h-3 w-[1px] bg-slate-800 hidden sm:block"></div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-emerald-400">✔</span> Quyết toán On-chain tự động
+      </div>
+    </div>
+
+    {/* Mũi tên chỉ xuống nhấp nháy nhảy động "Khám phá ngay" */}
+    <div 
+      onClick={() => {
+        document.getElementById('search-section')?.scrollIntoView({ 
+          behavior: 'smooth', // Cuộn mượt mà không bị khựng
+          block: 'start'      // Đẩy khối tìm kiếm lên đầu màn hình
+        });
+      }}
+      className="mt-4 animate-bounce flex flex-col items-center gap-1 cursor-pointer opacity-80 hover:opacity-100 transition-opacity select-none">
+      <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+        Khám phá ngay
+      </span>
+      <span className="text-lg text-blue-400">↓</span>
+    </div>
+  </div>
+</div>
+
       {/* Khu vực Tìm kiếm & Bộ lọc nhanh */}
-      <div className="flex flex-col md:flex-row gap-4 items-end justify-between bg-slate-900/40 p-6 rounded-2xl border border-slate-800">
+      <div id="search-section" className="flex flex-col md:flex-row gap-4 items-end justify-between bg-slate-900/40 p-6 rounded-2xl border border-slate-800">
         <div className="max-w-md w-full relative">
           <div className="space-y-2">
             <label className="block text-base font-extrabold uppercase tracking-wider text-slate-100">

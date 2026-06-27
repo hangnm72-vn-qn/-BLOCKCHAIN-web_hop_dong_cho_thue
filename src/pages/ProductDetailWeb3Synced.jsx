@@ -315,7 +315,7 @@ function ProductDetailWeb3Synced() {
                 </div>
 
                 <span className="inline-flex items-center text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md">
-                  Được quyền hủy, hoàn cọc 100%
+                  Được quyền hủy, hoàn tiền 100%
                 </span>
               </div>
             </div>
