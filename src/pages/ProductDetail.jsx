@@ -309,8 +309,20 @@ function ProductDetail() {
                     setMessage('Gửi lệnh thuê, chờ xử lý trên chain...');
                     await rentTx.wait();
 
-                    let nextId = await single.nextContractId();
-                    const newContractId = Number(nextId.toString()) - 1;
+                    // 🛡️ BỌC LẠI ĐỂ TRÁNH LỖI DECODE 0x KHI CONTRACT SAI/RÁC
+                    let nextId = 1; // Giá trị mặc định dự phòng
+                    try {
+                      if (single && single.target && single.target !== '0x') {
+                        const nextIdResult = await single.nextContractId();
+                        nextId = Number(nextIdResult.toString());
+                      }
+                    } catch (readError) {
+                      console.error("Không thể đọc nextContractId từ contract này, dùng ID dự phòng:", readError);
+                      // Thử lấy ID từ database hoặc một state nào đó nếu có, tạm thời để mặc định
+                      nextId = 1; 
+                    }
+
+                    const newContractId = nextId > 0 ? nextId - 1 : 0;
                     setContractId(newContractId);
                     await syncContractStatus(packageAddress, signer, newContractId);
 
