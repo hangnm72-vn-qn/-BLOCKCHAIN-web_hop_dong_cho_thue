@@ -566,8 +566,8 @@ function Dashboard({ currentTab, walletAddress }) {
 
             {renterData &&
               renterData.status &&
-              renterData.status !== 'Available' &&
-              renterData.status !== 'None' && (
+              renterData.status !== 'available' &&
+              renterData.status !== 'none' && (
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-bold ${timerType === 'trial'
                     ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
@@ -580,8 +580,8 @@ function Dashboard({ currentTab, walletAddress }) {
           </div>
 
           {!renterData ||
-            renterData.status === 'None' ||
-            renterData.status === 'Available' ? (
+            renterData.status === 'none' ||
+            renterData.status === 'available' ? (
             <div className="py-12 flex flex-col items-center justify-center text-center gap-4 bg-slate-950/40 border border-dashed border-slate-800 rounded-xl">
               <div className="text-4xl">📭</div>
               <div>
@@ -659,7 +659,7 @@ function Dashboard({ currentTab, walletAddress }) {
                 </div>
               </div>
 
-              {renterData.status === 'Unavailable' &&
+              {renterData.status === 'unavailable' &&
                 timerType === 'trial' &&
                 !rentalConfirmed && (
                   <div className="flex flex-col gap-3 border-t border-slate-800 pt-4 mt-2">
