@@ -205,7 +205,7 @@ function ProductDetailWeb3Synced() {
       const rentalInfo = {
         message: data.message || prov.message || 'Máy đã được bàn giao thành công.',
         ipAddress: data.ipAddress || data.ip || '',
-        port: data.port || '22',
+        port: data.port || '',
         username: data.username || '',
         password: data.password || '',
       };
@@ -417,7 +417,7 @@ function ProductDetailWeb3Synced() {
                 <div>
                   Port:{' '}
                   <span className="font-mono text-blue-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                    {credentials.port || '22'}
+                    {credentials.port || 'Đang cập nhật'}
                   </span>
                 </div>
 

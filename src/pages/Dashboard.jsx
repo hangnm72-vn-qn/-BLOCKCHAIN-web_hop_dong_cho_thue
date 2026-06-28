@@ -30,7 +30,7 @@ function Dashboard({ currentTab, walletAddress }) {
   // =========================================================
   const [renterData, setRenterData] = useState({
     ip: localStorage.getItem('trustrent.rentalIp') || '',
-    port: localStorage.getItem('trustrent.rentalPort') || '22',
+    port: localStorage.getItem('trustrent.rentalPort') || '',
     username: localStorage.getItem('trustrent.rentalUsername') || '',
     password: localStorage.getItem('trustrent.rentalPassword') || '',
     status: 'None'
@@ -85,7 +85,7 @@ function Dashboard({ currentTab, walletAddress }) {
   const clearActiveRentalState = () => {
     setRenterData({
       ip: '',
-      port: '22',
+      port: '',
       username: '',
       password: '',
       status: 'None',
@@ -629,7 +629,7 @@ function Dashboard({ currentTab, walletAddress }) {
                     <div>
                       <p className="text-slate-500 mb-1">Cổng Kết Nối (Port)</p>
                       <p className="font-mono bg-slate-900 p-2 rounded border border-slate-800 text-slate-200">
-                        {renterData.port || '22'}
+                        {renterData.port || 'Đang cập nhật'}
                       </p>
                     </div>
 
