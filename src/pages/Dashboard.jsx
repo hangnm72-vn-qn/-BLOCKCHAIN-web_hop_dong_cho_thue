@@ -69,7 +69,7 @@ function Dashboard({ currentTab, walletAddress }) {
     condition: '',
     username: '',
     password: '',
-    ownerAddress: currentWallet,
+    ownerAddress: currentWallet, // Sử dụng chuẩn biến currentWallet vừa lấy ở trên
   });
 
   const [imageFile, setImageFile] = useState(null);
@@ -177,71 +177,53 @@ function Dashboard({ currentTab, walletAddress }) {
   }, [currentWallet]);
 
   // =========================================================
+ // =========================================================
   // 5. LẤY THỜI GIAN PHIÊN THUÊ TỪ BACKEND
-  // Backend trả:
-  // status: Available / Unavailable
-  // trialTimeLeft
-  // rentalTimeLeft
   // =========================================================
   useEffect(() => {
-    if (!activeProductId) {
+    // ⚙️ CHUYỂN LOGIC CHECK VÀO ĐÂY: Nếu không có ID hợp lệ -> Reset sạch trạng thái và THOÁT LUÔN!
+    if (!activeProductId || activeProductId === 'undefined' || activeProductId === 'null') {
       setTimeLeft(0);
       setTimerType('none');
       setShowToast(false);
       setRenterData((prev) => ({ ...prev, status: 'None' }));
       setRentalConfirmed(false);
       localStorage.removeItem('trustrent.rentalConfirmed');
-      return;
+      return; 
     }
 
     const fetchSessionTime = async () => {
       try {
         const data = await getSessionTime(activeProductId);
+        if (!data) return;
 
-        const apiStatus = data?.status;
-        const trialTimeLeft = Number(data?.trialTimeLeft ?? 0);
-        const rentalTimeLeft = Number(data?.rentalTimeLeft ?? 0);
-        const fallbackTimeLeft = Number(data?.timeLeft ?? 0);
+        const apiStatus = data.status;
+        const trialTimeLeft = Number(data.trialTimeLeft ?? 0);
+        const rentalTimeLeft = Number(data.rentalTimeLeft ?? 0);
+        const fallbackTimeLeft = Number(data.timeLeft ?? 0);
 
         if (apiStatus === 'Available') {
           clearActiveRentalState();
           return;
         }
 
-        if (
-          apiStatus === 'Unavailable' &&
-          trialTimeLeft > 0 &&
-          !rentalConfirmed
-        ) {
+        if (apiStatus === 'Unavailable' && trialTimeLeft > 0 && !rentalConfirmed) {
           setTimeLeft(trialTimeLeft);
           setTimerType('trial');
-
-          setRenterData((prev) => ({
-            ...prev,
-            status: 'Unavailable',
-          }));
-
+          setRenterData(prev => ({ ...prev, status: 'Unavailable' }));
           setShowToast(trialTimeLeft <= 60 && trialTimeLeft > 0);
           return;
         }
 
         if (apiStatus === 'Unavailable') {
-          const displayTimeLeft =
-            rentalTimeLeft > 0 ? rentalTimeLeft : fallbackTimeLeft;
-
+          const displayTimeLeft = rentalTimeLeft > 0 ? rentalTimeLeft : fallbackTimeLeft;
           if (displayTimeLeft <= 0) {
             clearActiveRentalState();
             return;
           }
-
           setTimeLeft(displayTimeLeft);
           setTimerType('rental');
-
-          setRenterData((prev) => ({
-            ...prev,
-            status: 'Unavailable',
-          }));
-
+          setRenterData(prev => ({ ...prev, status: 'Unavailable' }));
           setShowToast(displayTimeLeft <= 900 && displayTimeLeft > 0);
         }
       } catch (err) {
@@ -250,12 +232,9 @@ function Dashboard({ currentTab, walletAddress }) {
     };
 
     fetchSessionTime();
-
     const interval = setInterval(fetchSessionTime, 5000);
-
     return () => clearInterval(interval);
-  }, [activeProductId, rentalConfirmed]);
-
+  }, [activeProductId, rentalConfirmed]); // ✅ Chỉ 1 dấu đóng duy nhất, chuẩn chỉ cấu trúc!
   // =========================================================
   // 6. KIỂM TRA MẠNG METAMASK
   // =========================================================
@@ -463,29 +442,41 @@ function Dashboard({ currentTab, walletAddress }) {
         tokenDecimals
       );
 
-      const tx = await factoryContract.createServerPackage(
+     const tx = await factoryContract.createServerPackage(
         serverForm.title,
         onChainPrice
       );
 
       setSubmitMessage('Đã gửi giao dịch lên smart contract, đang chờ xác nhận...');
-      await tx.wait();
+      const receipt = await tx.wait(); // 🔥 Giữ lại biến receipt để bóc tách log
 
       setSubmitMessage(
-        'Blockchain xác nhận. Đang lưu thông tin máy chủ lên database...'
+        'Blockchain xác nhận. Đang phân tích địa chỉ gói để lưu lên database...'
       );
+      let contractAddress = '';
+      if (receipt.logs && receipt.logs.length > 0) {
+        // Lấy địa chỉ của Contract phát ra log cuối hoặc log chứa địa chỉ mới deploy
+        contractAddress = receipt.logs[0].address; 
+      }
 
-      const backendResult = await createProduct(
-        serverForm.title,
-        `Cấu hình: ${serverForm.description || '4 vCPU'}, ${serverForm.condition || '16GB RAM'
-        }. Tài khoản: ${serverForm.username}`,
-        serverForm.pricePerHour,
-        serverForm.ownerAddress,
-        serverForm.condition,
-        serverForm.username,
-        serverForm.password,
-        imageFile
-      );
+      // Phương án dự phòng nếu log nằm ở vị trí khác hoặc ông đã lưu sẵn cách lấy contract cũ:
+      if (!contractAddress) {
+        contractAddress = receipt.contractAddress || '';
+      }
+
+      console.log('Địa chỉ Package Contract vừa tạo:', contractAddress);
+// 2. Gửi dữ liệu đồng bộ lên Backend Database
+      const backendResult = await createProduct({
+        title: serverForm.title,
+        description: `Cấu hình: ${serverForm.description || '4 vCPU'}, ${serverForm.condition || '16GB RAM'}. Tài khoản: ${serverForm.username}`,
+        pricePerHour: serverForm.pricePerHour,
+        ownerAddress: serverForm.ownerAddress,
+        condition: serverForm.condition,
+        username: serverForm.username, 
+        password: serverForm.password, 
+        images: imageFile,             
+        packageAddress: contractAddress // ✅ Bây giờ biến contractAddress đã tồn tại ở trên, không bao giờ lỗi nữa!
+      });
 
       if (!backendResult?.success) {
         throw new Error('Lưu dữ liệu máy chủ lên Backend thất bại!');

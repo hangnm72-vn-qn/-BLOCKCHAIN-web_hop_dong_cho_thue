@@ -12,8 +12,8 @@ export const getProductById = async (id) => {
     return response.data.data;
 };
 
-// Đăng gói máy chủ mới
-export const createProduct = async (
+// 🔥 SỬA THÀNH NHẬN 1 OBJECT { ... } ĐỂ KHỚP VỚI DASHBOARD.JSX
+export const createProduct = async ({
     title,
     description,
     pricePerHour,
@@ -21,29 +21,29 @@ export const createProduct = async (
     condition,
     username,
     password,
-    imageFile,
+    images, // Nhận trường images từ Dashboard truyền sang
     packageAddress = ''
-) => {
+}) => {
     try {
         const formData = new FormData();
 
-        formData.append('title', title);
-        formData.append('description', description);
-        formData.append('pricePerHour', pricePerHour);
+        formData.append('title', title || '');
+        formData.append('description', description || '');
+        formData.append('pricePerHour', pricePerHour || '');
         formData.append('depositAmount', 0);
-        formData.append('ownerAddress', ownerAddress);
-        formData.append('condition', condition);
-        formData.append('username', username);
-        formData.append('password', password);
+        formData.append('ownerAddress', ownerAddress || '');
+        formData.append('condition', condition || '');
+        formData.append('username', username || '');
+        formData.append('password', password || '');
 
-        // Nếu sau này Hạnh/backend cần lưu địa chỉ contract gói máy
+        // Gán đúng địa chỉ contract gói máy hợp lệ
         if (packageAddress) {
             formData.append('packageAddress', packageAddress);
         }
 
-        // Backend đang đón bằng uploadCloud.array('images', 5)
-        if (imageFile) {
-            formData.append('images', imageFile);
+        // Đính kèm file ảnh (Trường 'images' khớp với uploadCloud.array('images', 5) bên backend)
+        if (images) {
+            formData.append('images', images);
         }
 
         const response = await api.post('/products', formData, {
