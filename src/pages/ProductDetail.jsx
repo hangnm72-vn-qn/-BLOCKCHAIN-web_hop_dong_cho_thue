@@ -10,10 +10,9 @@ import { createRentalFactoryContract, createSingleContract, SEPOLIA_CHAIN_ID } f
 const CONTRACT_STATUS_LABELS = {
   0: 'Pending',
   1: 'AwaitingOwnerReview',
-  2: 'NegotiatingDiscount',
-  3: 'Active',
-  4: 'Completed',
-  5: 'Cancelled',
+  2: 'Active',
+  3: 'Completed',
+  4: 'Cancelled',
 };
 
 const MAX_RENTAL_HOURS = 8760;
@@ -459,53 +458,6 @@ function ProductDetail() {
                 Xác nhận OK
               </Button>
 
-              {/* NHÁNH 1 (PHẦN A): Chấp nhận giảm giá khi có sự cố nhỏ */}
-              <Button
-                variant="secondary"
-                className="flex-1"
-                onClick={async () => {
-                  try {
-                    setIsProcessing(true);
-                    setMessage('Gửi lệnh chấp nhận giảm giá...');
-                    const provider = new BrowserProvider(window.ethereum);
-                    const signer = await provider.getSigner();
-                    
-                    const packageAddress = await resolvePackageAddress(signer);
-                    if (!packageAddress) return setMessage('Thiếu địa chỉ Contract!');
-
-                    const currentStatus = await syncContractStatus(packageAddress, signer, contractId);
-                    if (currentStatus !== 'NegotiatingDiscount') {
-                      setMessage('Không thể chấp nhận giảm giá vì hợp đồng chưa ở trạng thái thương lượng giảm giá. Owner cần đề xuất mức giảm giá trước.');
-                      return;
-                    }
-
-                    const single = createSingleContract(packageAddress, signer);
-                    const tx = await single.acceptDiscount(contractId);
-                    await tx.wait();
-                    setTxHash(tx.hash);
-
-                    const contractData = await single.getContract(contractId);
-                    const nextStatus = getContractStatusLabel(contractData?.status);
-                    setContractStatus(nextStatus);
-                    setContractRenter(contractData?.renter || '');
-
-                    const balanceAfterAccept = await refreshWalletBalance(signer);
-                    if (balanceAfterAccept !== null) {
-                      const { balance, address } = balanceAfterAccept;
-                      setMessage(`Đã chấp nhận giảm giá. Hợp đồng đã chuyển sang ${nextStatus}. Tiền sẽ về ví ${address}. Số dư ví hiện tại khoảng ${balance.toFixed(6)} token.`);
-                    } else {
-                      setMessage('Đã chấp nhận giảm giá, máy hoạt động tiếp.');
-                    }
-                    
-                    try { await updateProductStatus(product._id, 'Active'); } catch (e) {}
-                  } catch (e) {
-                    console.error(e);
-                    setMessage('Lỗi khi chấp nhận giảm giá: ' + (e?.message || ''));
-                  } finally { setIsProcessing(false); }
-                }}
-              >
-                Đồng ý giảm giá 20%
-              </Button>
 
               {/* NHÁNH 1 (PHẦN B) & NHÁNH 3: Khách từ chối -> Hủy, hoàn tiền & xóa ví renterAddress khỏi DB */}
               <Button
@@ -522,13 +474,13 @@ function ProductDetail() {
                     if (!packageAddress) return setMessage('Thiếu địa chỉ Contract!');
 
                     const currentStatus = await syncContractStatus(packageAddress, signer, contractId);
-                    if (currentStatus !== 'NegotiatingDiscount') {
-                      setMessage('Không thể hoàn tiền vì hợp đồng hiện chưa ở trạng thái thương lượng giảm giá.');
+                    if (currentStatus !== 'Pending' && currentStatus !== 'AwaitingOwnerReview') {
+                      setMessage('Không thể hủy ở trạng thái hiện tại');
                       return;
                     }
 
                     const single = createSingleContract(packageAddress, signer);
-                    const tx = await single.rejectDiscount(contractId);
+                    const tx = await single.cancelByRenter(contractId);
                     await tx.wait();
                     setTxHash(tx.hash);
 

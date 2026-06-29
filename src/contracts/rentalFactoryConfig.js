@@ -1,10 +1,10 @@
 import { Contract } from 'ethers';
-import rentalFactoryAbi from '../assets/smartcontract/RentalFactory.abi.json';
-import rentalContractAbi from '../assets/smartcontract/RentalContract.abi.json';
+import rentalFactoryAbi from '../assets/smartcontract/ServerRentalFactory.json';
+import rentalContractAbi from '../assets/smartcontract/SingleServerRental.json';
 
 
 // Địa chỉ của RentalFactory đã deploy trên Sepolia.
-export const RENTAL_FACTORY_ADDRESS = '0x79B32d251CA4205c00630706F3BF73C840C6AAf4';
+export const RENTAL_FACTORY_ADDRESS = '0xB7BA323CF8634ED2a51bD6f96034E7e53D728A3a';
 
 
 // Sepolia có chainId là 11155111.

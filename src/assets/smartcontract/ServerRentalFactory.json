@@ -127,41 +127,34 @@
     "name": "getPackageInfo",
     "outputs": [
       {
-        "components": [
-          {
-            "internalType": "address",
-            "name": "contractAddress",
-            "type": "address"
-          },
-          {
-            "internalType": "string",
-            "name": "configType",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "pricePerHour",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "owner",
-            "type": "address"
-          },
-          {
-            "internalType": "string",
-            "name": "status",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "totalRentals",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct ServerRentalFactory.PackageInfo",
-        "name": "",
-        "type": "tuple"
+        "internalType": "address",
+        "name": "contractAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "configType",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pricePerHour",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "status",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalRentals",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
