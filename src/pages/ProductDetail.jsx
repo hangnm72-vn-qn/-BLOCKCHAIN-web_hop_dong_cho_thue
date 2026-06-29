@@ -329,8 +329,15 @@ function ProductDetail() {
 
                     try {
                       const prov = await provisionProduct(product._id, renterAddress);
-                      if (prov && prov.data && prov.data.credentials) {
-                        setCredentials(prov.data.credentials);
+                      if (prov && prov.data) {
+                        setCredentials(prov.data);
+                        localStorage.setItem('trustrent.rentalIp', prov.data.ip || '');
+                        localStorage.setItem('trustrent.rentalPort', prov.data.port || '');
+                        localStorage.setItem('trustrent.rentalUsername', prov.data.username || '');
+                        localStorage.setItem('trustrent.rentalPassword', prov.data.password || '');
+                        localStorage.setItem('trustrent.activeProductId', product._id);
+                        localStorage.setItem('trustrent.activeContractId', String(newContractId));
+                        localStorage.setItem('trustrent.activePackageAddress', packageAddress);
                       }
                     } catch (e) {}
 
