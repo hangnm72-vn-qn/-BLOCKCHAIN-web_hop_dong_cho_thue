@@ -129,7 +129,3 @@ Toàn bộ hợp đồng được triển khai và xác minh công khai trên **
 | `SingleServerRental.sol` | *(địa chỉ động, sinh tự động cho mỗi máy chủ đăng bán)* | Quản lý ký quỹ, trạng thái và vòng đời thuê độc lập |
 
 ---
-
-<p align="center">
-  <i>Developed with ❤️ by TrustRent Technical Team - 2026</i>
-</p>
